@@ -47,8 +47,15 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1793648128673,
+      "when": 1793646985748,
       "tag": "0006_livre",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793648801719,
+      "tag": "0007_livre_export",
       "breakpoints": true
     }
   ]
