@@ -46,6 +46,9 @@ export function Visionneuse({
   const [panneau, setPanneau] = useState(true);
   const [commentaire, setCommentaire] = useState("");
   const [legende, setLegende] = useState("");
+  // Mise en avant modifiée pendant cette ouverture (la liste du parent peut ne pas suivre).
+  const [vedettes, setVedettes] = useState<Record<string, boolean>>({});
+  const vedette = vedettes[m.id] ?? m.vedette;
   const debutToucher = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -89,6 +92,22 @@ export function Visionneuse({
     if ("erreur" in d) return setErreur(d.erreur);
     setDetail(d);
     onMaj?.(m.id, { legende: d.legende, dansSite: d.dansSite, dansLivre: d.dansLivre });
+  }
+
+  async function basculerVedette(valeur: boolean) {
+    setErreur(null);
+    setVedettes((v) => ({ ...v, [m.id]: valeur }));
+    const rep = await fetch(`/api/voyages/${slug}/site`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "vedette", mediaId: m.id, valeur }),
+    });
+    const json = (await rep.json()) as { erreur?: string };
+    if (json.erreur) {
+      setVedettes((v) => ({ ...v, [m.id]: !valeur }));
+      return setErreur(json.erreur);
+    }
+    onMaj?.(m.id, { vedette: valeur });
   }
 
   const peutLegender = detail && (detail.auteurId === utilisateurId || estAdmin);
@@ -197,6 +216,12 @@ export function Visionneuse({
                     {champ === "dansSite" ? "Dans le site" : "Dans le livre"}
                   </label>
                 ))}
+                {estAdmin ? (
+                  <label className="flex min-h-11 items-center gap-2">
+                    <input type="checkbox" checked={vedette} onChange={(e) => basculerVedette(e.target.checked)} />
+                    Mise en avant
+                  </label>
+                ) : null}
               </div>
 
               <div className="flex flex-wrap gap-1.5" aria-label="Réactions">

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, stat, writeFile, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { signatureValide, signer } from "../domaine/crypto";
-import type { Morceau, Stockage } from "./types";
+import { debutDuJourUtc, DUREE_URL_STABLE, type Morceau, type Stockage } from "./types";
 
 /**
  * Imitation de R2 sur le disque, pour le développement et les tests (jamais en production).
@@ -90,6 +90,10 @@ export class StockageLocal implements Stockage {
 
   async urlLecture(cle: string, dureeSecondes: number, nom?: string) {
     return this.url({ op: "lecture", cle, exp: Date.now() + dureeSecondes * 1000, nom });
+  }
+
+  async urlLectureStable(cle: string) {
+    return this.url({ op: "lecture", cle, exp: debutDuJourUtc().getTime() + DUREE_URL_STABLE * 1000 });
   }
 
   async taille(cle: string) {

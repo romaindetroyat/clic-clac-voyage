@@ -36,6 +36,16 @@
   --color-succes: var(--succes);
   --font-sans: var(--font-texte);
   --font-titre: var(--font-titre);
+
+  /* Site public d'un voyage : couleurs du thème, posées en ligne sur .site */
+  --color-s-fond: var(--s-fond);
+  --color-s-fond2: var(--s-fond2);
+  --color-s-encre: var(--s-encre);
+  --color-s-douce: var(--s-encre-douce);
+  --color-s-filet: var(--s-filet);
+  --color-s-accent: var(--s-accent);
+  --font-s-titre: var(--s-police-titre);
+  --font-s-texte: var(--s-police-texte);
 }
 
 html {
@@ -81,5 +91,159 @@ body {
   }
   .carte {
     @apply rounded-lg border border-filet bg-papier p-4 sm:p-5;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Site public d'un voyage                                             */
+/* ------------------------------------------------------------------ */
+
+.site {
+  background: var(--s-fond);
+  color: var(--s-encre);
+  font-family: var(--s-police-texte), system-ui, sans-serif;
+  color-scheme: light dark;
+}
+.site h1,
+.site h2,
+.site h3 {
+  font-family: var(--s-police-titre), Georgia, serif;
+}
+.site :focus-visible {
+  outline-color: var(--s-accent);
+}
+.site[data-polices="garamond-inter"] { --s-police-titre: var(--font-titre); --s-police-texte: var(--font-texte); }
+.site[data-polices="playfair-source"] { --s-police-titre: var(--f-playfair); --s-police-texte: var(--f-source); }
+.site[data-polices="fraunces-worksans"] { --s-police-titre: var(--f-fraunces); --s-police-texte: var(--f-worksans); }
+.site[data-polices="dmserif-dmsans"] { --s-police-titre: var(--f-dmserif); --s-police-texte: var(--f-dmsans); }
+.site[data-polices="grotesk-inter"] { --s-police-titre: var(--f-grotesk); --s-police-texte: var(--font-texte); }
+.site[data-polices="lora-nunito"] { --s-police-titre: var(--f-lora); --s-police-texte: var(--f-nunito); }
+
+/* Petites touches propres à chaque thème */
+.site[data-theme="road-trip"] h1,
+.site[data-theme="road-trip"] h2 {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.site[data-theme="ville-et-culture"] h1 {
+  font-style: italic;
+}
+.site[data-theme="montagne"] .s-numero,
+.site[data-theme="desert-safari"] .s-numero {
+  font-variant-numeric: oldstyle-nums;
+}
+
+.s-defilement {
+  scrollbar-width: thin;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.s-defilement > * {
+  scroll-snap-align: start;
+}
+.s-texte p + p {
+  margin-top: 0.9em;
+}
+
+/* Visionneuse du site (script commun au site en ligne et à l'export .zip) */
+.sv {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: #0b0b0b;
+  color: #f2efe9;
+  font-family: var(--s-police-texte), system-ui, sans-serif;
+}
+.sv-haut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+.sv-scene {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  touch-action: pan-y;
+}
+.sv-scene img,
+.sv-scene video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.sv-bas {
+  max-height: 38vh;
+  overflow-y: auto;
+  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.sv-bas:empty {
+  display: none;
+}
+.sv button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.sv .sv-fleche {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgb(255 255 255 / 0.12);
+  font-size: 1.5rem;
+}
+.sv .sv-prec { left: 0.5rem; }
+.sv .sv-suiv { right: 0.5rem; }
+.sv-legende {
+  font-size: 1.125rem;
+  margin-bottom: 0.35rem;
+}
+.sv-meta,
+.sv-reac {
+  color: rgb(242 239 233 / 0.65);
+  font-size: 0.8125rem;
+}
+.sv-coms {
+  margin-top: 0.5rem;
+  list-style: none;
+  padding: 0;
+}
+.sv-coms li + li {
+  margin-top: 0.25rem;
+}
+@media (min-width: 1024px) {
+  .sv {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .sv-haut {
+    width: 100%;
+  }
+  .sv-scene {
+    height: calc(100% - 60px);
+  }
+  .sv-bas {
+    width: 22rem;
+    max-height: calc(100% - 60px);
+    border-left: 1px solid rgb(255 255 255 / 0.12);
+  }
+}
+@media (max-width: 639px) {
+  .sv .sv-fleche {
+    display: none;
   }
 }

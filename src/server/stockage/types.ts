@@ -17,6 +17,11 @@ export interface Stockage {
   annulerMultipart(cle: string, envoiId: string): Promise<void>;
   /** URL signée de lecture, à durée limitée. */
   urlLecture(cle: string, dureeSecondes: number, nomTelechargement?: string): Promise<string>;
+  /**
+   * URL signée identique toute la journée (signée à minuit UTC, valable 48 h) :
+   * le navigateur et le service worker peuvent la garder en cache.
+   */
+  urlLectureStable(cle: string): Promise<string>;
   /** Taille de l'objet, ou null s'il n'existe pas. */
   taille(cle: string): Promise<number | null>;
   supprimer(cles: string[]): Promise<void>;
@@ -32,3 +37,10 @@ export const cles = {
   version: (voyageId: string, mediaId: string, nom: string, ext: string) =>
     `voyages/${voyageId}/web/${mediaId}-${nom}.${ext}`,
 };
+
+/** Début du jour UTC courant : base des URL de lecture stables. */
+export function debutDuJourUtc(maintenant = new Date()): Date {
+  return new Date(Date.UTC(maintenant.getUTCFullYear(), maintenant.getUTCMonth(), maintenant.getUTCDate()));
+}
+
+export const DUREE_URL_STABLE = 48 * 3600;
