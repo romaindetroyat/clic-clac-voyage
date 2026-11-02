@@ -22,9 +22,9 @@ test("récit : découpage, épisode, légende, commentaire, réaction, sélectio
 
   // Titre, lieu et récit.
   await page.getByText("Titre, lieu et récit").click();
-  await page.getByLabel("Titre").fill("Arrivée à Naxos");
+  await page.getByRole("textbox", { name: "Titre", exact: true }).fill("Arrivée à Naxos");
   await page.getByLabel("Lieu (facultatif)").fill("Chora");
-  await page.getByLabel("Récit").fill("Le ferry accoste en fin de matinée.");
+  await page.getByRole("textbox", { name: "Récit", exact: true }).fill("Le ferry accoste en fin de matinée.");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText("Épisode enregistré.")).toBeVisible();
   await page.getByRole("link", { name: "Arrivée à Naxos", exact: true }).click();
