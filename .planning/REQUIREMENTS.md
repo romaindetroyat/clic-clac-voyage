@@ -48,7 +48,7 @@ Dérivées de [`docs/PROMPT-LANCEMENT.md`](../docs/PROMPT-LANCEMENT.md). Chaque 
 
 ## Site du voyage (SITE)
 
-- **SITE-01** : adresse `clic-clac-voyage.fr/v/<slug>`.
+- **SITE-01** : adresse `<APP_URL>/v/<slug>` ; au départ l'URL Vercel par défaut, `clic-clac-voyage.fr` plus tard sans changement de code. Aucune URL absolue codée en dur.
 - **SITE-02** : responsive, téléphone d'abord, soigné sur ordinateur ; bonne note Lighthouse mobile.
 - **SITE-03** : au moins 6 thèmes : mer et îles, montagne, ville et culture, désert ou safari, road-trip, neutre élégant.
 - **SITE-04** : personnalisation : palette, couple de polices, photo de couverture.
