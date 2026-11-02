@@ -115,6 +115,24 @@ export class StockageR2 implements Stockage {
     return Number(rep.headers.get("content-length") ?? 0);
   }
 
+  async supprimerPrefixe(prefixe: string) {
+    if (!prefixe.endsWith("/") || prefixe.length < 4) throw new Error("Préfixe refusé");
+    let total = 0;
+    let suite = "";
+    for (;;) {
+      // ListObjectsV2 : 1 000 clés par page au plus.
+      const params: Record<string, string> = { "list-type": "2", prefix: prefixe, "max-keys": "1000" };
+      if (suite) params["continuation-token"] = suite;
+      const xml = await (await this.appel(this.url("", params))).text();
+      const cles = [...xml.matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => m[1].replace(/&amp;/g, "&"));
+      if (cles.length) await this.supprimer(cles);
+      total += cles.length;
+      suite = /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/.exec(xml)?.[1] ?? "";
+      if (!suite || !/<IsTruncated>true<\/IsTruncated>/.test(xml)) break;
+    }
+    return total;
+  }
+
   async supprimer(clesASupprimer: string[]) {
     // Suppression groupée S3 par lots de 1000 clés.
     for (let i = 0; i < clesASupprimer.length; i += 1000) {

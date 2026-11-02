@@ -48,7 +48,7 @@ test("import : photos, vidéo, gros fichier en morceaux, doublons, recalage d'ho
       .filter((n) => n.startsWith("IMG_") || n.startsWith("DSCF") || n.startsWith("VID"));
   // Heures réelles : Fuji 10:00 UTC (à tort), iPhone 11:00 et 11:30, vidéo 11:45.
   expect(await ordre()).toEqual(["DSCF1234.jpg", "IMG_0001.jpg", "IMG_0002.jpg", "VID_0001.mp4"]);
-  await expect(page.locator("img[src*='stockage-local']").first()).toBeVisible();
+  await expect(page.locator("img[src*='/medias/']").first()).toBeVisible();
 
   // L'appareil Fujifilm retardait de 1 h 12 : on le recale, ses photos se replacent.
   await page.goto("/voyages/import-naxos/appareils");

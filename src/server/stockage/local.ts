@@ -100,6 +100,17 @@ export class StockageLocal implements Stockage {
     return stat(this.chemin(cle)).then((s) => s.size, () => null);
   }
 
+  async supprimerPrefixe(prefixe: string) {
+    if (!prefixe.endsWith("/") || prefixe.length < 4) throw new Error("Préfixe refusé");
+    const dossier = this.chemin(prefixe);
+    const n = await readdir(dossier, { recursive: true, withFileTypes: true }).then(
+      (e) => e.filter((x) => x.isFile()).length,
+      () => 0,
+    );
+    await rm(dossier, { recursive: true, force: true });
+    return n;
+  }
+
   async supprimer(clesASupprimer: string[]) {
     await Promise.all(clesASupprimer.map((c) => rm(this.chemin(c), { force: true })));
   }

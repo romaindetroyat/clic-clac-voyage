@@ -126,16 +126,14 @@ export async function mettreEnAvant(db: Db, voyageId: string, mediaId: string, v
 
 /** Clé de stockage d'un média publié sur le site, ou null s'il n'y est pas (ou plus). */
 export async function cleMediaPublie(db: Db, voyageId: string, mediaId: string, taille: TailleSite) {
-  const m = await db.query.media.findFirst({
-    where: and(
-      eq(media.id, mediaId),
-      eq(media.voyageId, voyageId),
-      eq(media.statut, "pret"),
-      eq(media.dansSite, true),
-      isNull(media.doublonDe),
-    ),
-    columns: { versions: true, type: true },
-  });
+  return cleMedia(db, voyageId, mediaId, taille, true);
+}
+
+/** Clé de stockage d'une version web d'un média du voyage (jamais l'original). */
+export async function cleMedia(db: Db, voyageId: string, mediaId: string, taille: TailleSite, publieSeulement = false) {
+  const conditions = [eq(media.id, mediaId), eq(media.voyageId, voyageId), eq(media.statut, "pret")];
+  if (publieSeulement) conditions.push(eq(media.dansSite, true), isNull(media.doublonDe));
+  const m = await db.query.media.findFirst({ where: and(...conditions), columns: { versions: true, type: true } });
   return m ? (cleVersion(m.versions, m.type, taille) ?? null) : null;
 }
 

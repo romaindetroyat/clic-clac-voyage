@@ -296,10 +296,27 @@ export type MediaGalerie = {
   vedette: boolean;
 };
 
-/** Médias visibles du voyage, dans l'ordre chronologique corrigé, avec des URL de lecture à durée limitée. */
+/**
+ * Empreinte courte d'une clé de stockage : ajoutée aux adresses des images, elle change dès que
+ * la version change (une retouche crée de nouvelles clés), ce qui contourne les caches.
+ */
+export function empreinteCle(cle: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < cle.length; i++) h = Math.imul(h ^ cle.charCodeAt(i), 0x01000193) >>> 0;
+  return h.toString(36);
+}
+
+/** Adresse d'une version web pour les membres (route protégée qui redirige vers le stockage). */
+export type UrlMedia = (mediaId: string, taille: "s" | "m" | "l" | "affiche" | "video", cle: string) => string;
+export const urlsMembre =
+  (slug: string): UrlMedia =>
+  (id, taille, cle) =>
+    `/api/voyages/${slug}/medias/${id}/${taille}?v=${empreinteCle(cle)}`;
+
+/** Médias visibles du voyage, dans l'ordre chronologique corrigé. */
 export async function galerie(
   db: Db,
-  stockage: Stockage,
+  url: UrlMedia,
   voyageId: string,
   filtre: { episodeId?: string | null } = {},
 ): Promise<MediaGalerie[]> {
@@ -323,10 +340,8 @@ export async function galerie(
       instant: instantCorrige(l.priseUtc, l.appareilId ? (parApp.get(l.appareilId)?.decalageSecondes ?? 0) : 0),
     })),
   );
-  const DUREE = 6 * 3600;
-  const lire = (cle: string | undefined) => (cle ? stockage.urlLecture(cle, DUREE) : Promise.resolve(null));
-  return Promise.all(
-    tries.map(async (l) => ({
+  const versionUrl = (id: string, t: "s" | "m" | "video", cle: string | undefined) => (cle ? url(id, t, cle) : null);
+  return tries.map((l) => ({
       id: l.id,
       type: l.type,
       nomFichier: l.nomFichier,
@@ -337,17 +352,16 @@ export async function galerie(
       appareil: l.appareilId ? (parApp.get(l.appareilId)?.libelle ?? null) : null,
       copieCompressee: l.copieCompressee,
       // Les versions retouchées, quand elles existent, remplacent les versions d'origine partout.
-      vignette: await lire(l.versions.rs ?? l.versions.s),
-      moyenne: await lire(l.versions.rm ?? l.versions.m ?? l.versions.l ?? l.versions.affiche),
-      video: await lire(l.versions.video),
+      vignette: versionUrl(l.id, "s", l.versions.rs ?? l.versions.s),
+      moyenne: versionUrl(l.id, "m", l.versions.rm ?? l.versions.m ?? l.versions.l ?? l.versions.affiche),
+      video: versionUrl(l.id, "video", l.versions.video),
       episodeId: l.episodeId,
       retouchee: !!l.retouche,
       legende: l.legende,
       dansSite: l.dansSite,
       dansLivre: l.dansLivre,
       vedette: l.vedette,
-    })),
-  );
+    }));
 }
 
 /* ------------------------------ Appareils ----------------------------- */

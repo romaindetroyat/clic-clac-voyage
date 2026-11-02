@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { exigerVoyage } from "@/server/acces";
@@ -20,6 +20,8 @@ import {
   type StatutCommande,
 } from "@/server/domaine/commande";
 import { reglerDecalage } from "@/server/domaine/medias";
+import { supprimerCompte, supprimerVoyage } from "@/server/domaine/suppression";
+import { getStockage } from "@/server/stockage";
 import {
   deplacerEpisode,
   fusionnerAvecSuivant,
@@ -334,4 +336,36 @@ export async function actionCommandePassee(slug: string): Promise<EtatAction> {
     revalidatePath(`/voyages/${slug}/commande`);
     return { message: "Commande notée comme passée : les montants sont figés." };
   });
+}
+
+/* ------------------------------ RGPD ------------------------------ */
+
+export async function actionSupprimerVoyage(slug: string, _: EtatAction, form: FormData): Promise<EtatAction> {
+  const r = await proteger(async () => {
+    const { voyage } = await exigerVoyage(slug, "admin");
+    if (String(form.get("confirmation") ?? "").trim() !== voyage.nom) {
+      throw new ErreurMetier("Recopiez exactement le nom du voyage pour confirmer.");
+    }
+    await supprimerVoyage(await getDb(), getStockage(), voyage.id);
+    return undefined;
+  });
+  if (r?.erreur) return r;
+  revalidatePath("/voyages");
+  redirect("/voyages");
+}
+
+export async function actionSupprimerCompte(_: EtatAction, form: FormData): Promise<EtatAction> {
+  const r = await proteger(async () => {
+    const u = await exigerUtilisateur();
+    if (String(form.get("confirmation") ?? "").trim().toLowerCase() !== u.email.toLowerCase()) {
+      throw new ErreurMetier("Recopiez votre adresse e-mail pour confirmer.");
+    }
+    await supprimerCompte(await getDb(), getStockage(), u.id);
+    return undefined;
+  });
+  if (r?.erreur) return r;
+  // La session n'existe plus en base ; on retire aussi les cookies du navigateur.
+  const pot = await cookies();
+  for (const c of pot.getAll()) if (c.name.includes("better-auth")) pot.delete(c.name);
+  redirect("/?compte=supprime");
 }

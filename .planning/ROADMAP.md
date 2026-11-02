@@ -2,13 +2,13 @@
 
 7 phases larges. Chacune se termine par quelque chose **utilisable sur le vrai voyage** et par une vérification de fin de phase contre ses critères. Choix techniques : [`research/SUMMARY.md`](research/SUMMARY.md).
 
-- [~] **Phase 1 : Fondations** (code fait, déploiement en attente)
-- [ ] **Phase 2 : Import et stockage**
+- [x] **Phase 1 : Fondations**
+- [~] **Phase 2 : Import et stockage** (reste : sélecteurs Google Photos, Drive, Dropbox, OneDrive ; Raccourci iOS ; rattrapage des fichiers non traités dans le navigateur)
 - [x] **Phase 3 : Tri et récit**
 - [x] **Phase 4 : Site du voyage**
 - [x] **Phase 5 : Livre photo**
-- [ ] **Phase 6 : Imprimeurs et commandes**
-- [ ] **Phase 7 : Finition sur le vrai voyage**
+- [x] **Phase 6 : Imprimeurs et commandes**
+- [~] **Phase 7 : Finition sur le vrai voyage** (code fait ; recette sur le vrai voyage : `docs/RECETTE.md`)
 
 ---
 

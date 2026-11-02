@@ -15,6 +15,7 @@ import {
   signerMorceaux,
   terminerEnvoi,
   type Declaration,
+  urlsMembre,
 } from "@/server/domaine/medias";
 import { accepterInvitations, creerVoyage, inviter } from "@/server/domaine/voyages";
 import { StockageLocal } from "@/server/stockage/local";
@@ -77,9 +78,10 @@ describe("import des médias", () => {
     expect(m?.statut).toBe("pret");
     expect(m?.versions.s).toMatch(/-s\.webp$/);
     expect(m?.priseUtc?.toISOString()).toBe("2026-08-03T11:00:00.000Z"); // heure d'Athènes
-    const g = await galerie(db, s, ctx.voyageId);
+    const g = await galerie(db, urlsMembre("naxos"), ctx.voyageId);
     expect(g).toHaveLength(1);
-    expect(g[0].vignette).toContain("/api/stockage-local?j=");
+    // Adresse stable pour les membres : la route vérifie l'accès puis redirige vers le stockage.
+    expect(g[0].vignette).toMatch(new RegExp(`^/api/voyages/naxos/medias/${g[0].id}/s\\?v=[0-9a-z]+$`));
   });
 
   it("ne renvoie pas un fichier déjà présent (même empreinte)", async () => {
@@ -144,7 +146,7 @@ describe("import des médias", () => {
       Buffer.from("grande photo"),
     );
     expect(fin?.masque).toBeDefined();
-    const g = await galerie(db, s, ctx.voyageId);
+    const g = await galerie(db, urlsMembre("naxos"), ctx.voyageId);
     expect(g.map((m) => m.nomFichier)).toEqual(["IMG_0001.HEIC"]);
   });
 
@@ -158,7 +160,7 @@ describe("import des médias", () => {
       Buffer.from("photo"),
       paul.id,
     );
-    expect((await galerie(db, s, ctx.voyageId)).map((m) => m.nomFichier)).toEqual(["P1.JPG", "R1.HEIC", "R2.HEIC"]);
+    expect((await galerie(db, urlsMembre("naxos"), ctx.voyageId)).map((m) => m.nomFichier)).toEqual(["P1.JPG", "R1.HEIC", "R2.HEIC"]);
 
     const apps = await appareilsDe(db, ctx.voyageId);
     const fuji = apps.find((a) => a.libelle === "Fujifilm X-T5")!;
@@ -168,7 +170,7 @@ describe("import des médias", () => {
     await expect(reglerDecalage(db, { voyageId: ctx.voyageId, userId: paul.id, estAdmin: false }, iphone.id, 60)).rejects.toThrow();
     // …mais peut recaler le sien : son Fuji retardait de 1 h 12.
     await reglerDecalage(db, { voyageId: ctx.voyageId, userId: paul.id, estAdmin: false }, fuji.id, 72 * 60);
-    expect((await galerie(db, s, ctx.voyageId)).map((m) => m.nomFichier)).toEqual(["R1.HEIC", "P1.JPG", "R2.HEIC"]);
+    expect((await galerie(db, urlsMembre("naxos"), ctx.voyageId)).map((m) => m.nomFichier)).toEqual(["R1.HEIC", "P1.JPG", "R2.HEIC"]);
   });
 
   it("annule un envoi en cours et nettoie le stockage", async () => {

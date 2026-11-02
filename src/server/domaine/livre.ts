@@ -8,8 +8,8 @@ import { geometrie, tailleSortie } from "@/lib/rendu/geometrie";
 import { schemaRetouche } from "@/lib/rendu/parametres";
 import type { Db } from "../db/client";
 import { appareil, commentaire, episode, livre, media, user, versionLivre } from "../db/schema";
-import type { Stockage } from "../stockage/types";
 import { genererId } from "./crypto";
+import type { UrlMedia } from "./medias";
 import { instantCorrige, trierChronologiquement } from "./temps";
 import { ErreurMetier } from "./voyages";
 
@@ -26,7 +26,7 @@ export function dimensionsEffectives(largeur: number, hauteur: number, retouche:
 }
 
 /** Photos cochées pour le livre (jamais de vidéo), dans l'ordre chronologique. */
-export async function mediasDuLivre(db: Db, stockage: Stockage, voyageId: string): Promise<MediaLivre[]> {
+export async function mediasDuLivre(db: Db, url: UrlMedia, voyageId: string): Promise<MediaLivre[]> {
   const lignes = await db
     .select({
       id: media.id,
@@ -66,11 +66,9 @@ export async function mediasDuLivre(db: Db, stockage: Stockage, voyageId: string
     : [];
   const comsPar = new Map<string, string[]>();
   for (const c of coms) comsPar.set(c.mediaId, [...(comsPar.get(c.mediaId) ?? []), c.texte]);
-  const lire = (cle?: string) => (cle ? stockage.urlLecture(cle, 6 * 3600) : Promise.resolve(null));
-  return Promise.all(
-    tries
+  return tries
       .filter((l) => l.largeur && l.hauteur)
-      .map(async (l) => {
+      .map((l) => {
         const [largeur, hauteur] = dimensionsEffectives(l.largeur!, l.hauteur!, l.retouche);
         return {
           id: l.id,
@@ -82,12 +80,11 @@ export async function mediasDuLivre(db: Db, stockage: Stockage, voyageId: string
           auteur: l.auteur,
           vedette: l.vedette,
           qualite: l.nettete,
-          vignette: await lire(l.versions.rs ?? l.versions.s),
-          moyenne: await lire(l.versions.rm ?? l.versions.m),
+          vignette: (l.versions.rs ?? l.versions.s) ? url(l.id, "s", (l.versions.rs ?? l.versions.s)!) : null,
+          moyenne: (l.versions.rm ?? l.versions.m) ? url(l.id, "m", (l.versions.rm ?? l.versions.m)!) : null,
           commentaires: comsPar.get(l.id) ?? [],
         };
-      }),
-  );
+      });
 }
 
 export async function episodesDuLivre(db: Db, voyageId: string): Promise<EpisodeLivre[]> {
