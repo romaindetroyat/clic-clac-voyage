@@ -1,8 +1,23 @@
 # État du projet
 
-**Phase en cours** : 1, Fondations (code terminé, déploiement en attente)
-**Dernière action** : phase 1 codée et testée en local (2 novembre 2026)
-**Prochaine étape** : vérifier la connexion Gmail et l'installation sur téléphone, puis phase 2
+**Phase en cours** : 2, Import et stockage (première tranche livrée)
+**Dernière action** : phase 1 en production (connexion Gmail vérifiée par Romain) ; phase 2, tranche 1 : envoi reprenable vers R2, analyse dans le navigateur, galerie, recalage d'horloge, dédoublonnage
+**Prochaine étape** : tester l'import réel sur téléphone, puis tranche 2 (partage Android et Raccourci iOS, WhatsApp, Google Photos, Drive, Dropbox, OneDrive, vidéo allégée, mode économie de données)
+
+## Phase 2 : où on en est
+
+| Exigence | État |
+|---|---|
+| IMP-01, 02 envoi reprenable, file persistante | ✅ multipart R2 signé, file IndexedDB, reprise testée en E2E (coupure + rechargement) |
+| IMP-04, 06 galerie du téléphone, glisser-déposer de dossiers | ✅ |
+| IMP-11 JPEG, HEIC, PNG, WebP, AVIF, RAW (aperçu intégré) | ✅ HEIC via wasm hors Safari ; ⏳ à vérifier sur de vrais fichiers |
+| IMP-12 vidéos | ✅ original + affiche ; ⏳ version allégée 720p |
+| IMP-13 originaux + versions web | ✅ WebP 400/1200/2400 |
+| IMP-14, 15 EXIF, recalage d'horloge, fuseaux | ✅ testés |
+| IMP-16 dédoublonnage exact et perceptuel | ✅ testé (copie WhatsApp remplacée par l'original) |
+| IMP-03 économie de données | ⏳ |
+| IMP-05, 07–10 partage, Google Photos, Drive, Dropbox, OneDrive, iCloud, WhatsApp | ⏳ tranche 2 |
+| IMP-17 volume 10 000 fichiers / 50 Go | ⏳ à mesurer (galerie virtualisée en place) |
 
 ## Phase 1 : où on en est
 
@@ -23,7 +38,7 @@ Voir `PROJECT.md` (cadrage) et `research/SUMMARY.md` (stack). En bref : Vercel H
 | Quand | Quoi |
 |---|---|
 | Phase 1 | ✅ Projet Vercel, base Neon (neon-carmine-notebook), secrets ; Gmail par mot de passe d'application ; identifiants OAuth Google (facultatif, plus tard) |
-| Phase 2 | Compte Cloudflare : bucket R2, jetons d'API, Worker ; clés d'application Dropbox et OneDrive ; projet Google Cloud (Picker Photos et Drive) |
+| Phase 2 | ✅ Bucket R2 et clé d'API dans Vercel ; ⏳ clés d'application Dropbox et OneDrive ; projet Google Cloud (Picker Photos et Drive) |
 | Phase 5 | Secrets GitHub Actions pour l'accès R2 et le rappel vers l'app |
 | Phase 6 | Clés sandbox Lulu, Prodigi et Gelato (V2) |
 

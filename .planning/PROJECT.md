@@ -50,6 +50,7 @@ Accès sur invitation par e-mail, une invitation = un voyage. Connexion sans mot
 | Domaine | Pas de domaine personnalisé au départ : URL Vercel par défaut (ex. `clic-clac-voyage.vercel.app`), sites à `<url>/v/<slug>`. URL de base dans la variable `APP_URL` (liens d'invitation, liens secrets, manifeste PWA, e-mails) pour passer à `clic-clac-voyage.fr` plus tard sans toucher au code. Aucune tâche de réservation de domaine. *(Précision du 2 novembre 2026, relayée par une autre session.)* |
 | Hébergement | Vercel, Next.js App Router, TS strict |
 | Stockage médias | Cloudflare R2 |
+| Stockage des photos | Bucket R2 `clic-clac-voyage` placé en ENAM (est de l'Amérique du Nord) : la demande « Europe de l'Ouest » n'a pas été respectée par Cloudflare et Romain a choisi de le garder (2 novembre 2026). La juridiction EU reste possible via `R2_JURIDICTION=eu` en recréant le bucket. |
 | Paiement | Aucun dans l'app |
 | Commande imprimeur | V1 : PDF conformes + lien direct + suivi manuel. V2 : commande par API |
 | Livre | Un par voyage, avec historique des versions ; modèle indépendant de l'imprimeur ; pas de placement au pixel |

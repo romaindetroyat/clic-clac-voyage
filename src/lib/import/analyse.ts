@@ -1,0 +1,209 @@
+/**
+ * Analyse d'un fichier dans le navigateur (de préférence dans un Web Worker) :
+ * empreinte SHA-256, EXIF, décodage (HEIC, aperçu des RAW), empreinte perceptuelle,
+ * versions web en WebP. Les versions générées ne contiennent aucune métadonnée (ni GPS).
+ */
+import { createSHA256 } from "hash-wasm";
+import { estRaw, extension, mimeDeFichier, TAILLES_VERSIONS, typeDeFichier, type Analyse } from "./types";
+
+const TRANCHE = 8 * 1024 * 1024;
+
+export async function empreinteSha256(f: Blob, progression?: (fraction: number) => void): Promise<string> {
+  const h = await createSHA256();
+  h.init();
+  for (let pos = 0; pos < f.size; pos += TRANCHE) {
+    h.update(new Uint8Array(await f.slice(pos, pos + TRANCHE).arrayBuffer()));
+    progression?.(Math.min(1, (pos + TRANCHE) / f.size));
+  }
+  return h.digest("hex");
+}
+
+/* ------------------------------- EXIF -------------------------------- */
+
+type Exif = Pick<Analyse, "priseLocale" | "decalageExifMinutes" | "latitude" | "longitude" | "appareil">;
+
+function heureExif(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const m = /^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(v.trim());
+  if (!m || m[1] === "0000") return null;
+  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`;
+}
+
+function decalageExif(v: unknown): number | null {
+  if (typeof v !== "string") return null;
+  const m = /^([+-])(\d{2}):?(\d{2})$/.exec(v.trim());
+  return m ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : null;
+}
+
+export async function lireExif(f: Blob): Promise<Exif> {
+  const vide: Exif = { priseLocale: null, decalageExifMinutes: null, latitude: null, longitude: null, appareil: null };
+  try {
+    const exifr = (await import("exifr")).default;
+    const t = await exifr.parse(f, {
+      tiff: true,
+      exif: true,
+      gps: true,
+      xmp: false,
+      icc: false,
+      iptc: false,
+      reviveValues: false,
+      translateValues: false,
+    });
+    if (!t) return vide;
+    const gps = await exifr.gps(f).catch(() => null);
+    const marque = typeof t.Make === "string" ? t.Make.trim() : "";
+    const modele = typeof t.Model === "string" ? t.Model.trim() : "";
+    const serie = String(t.BodySerialNumber ?? t.SerialNumber ?? t.InternalSerialNumber ?? "").trim();
+    const libelle = modele.toLowerCase().startsWith(marque.toLowerCase()) ? modele : `${marque} ${modele}`.trim();
+    return {
+      priseLocale: heureExif(t.DateTimeOriginal ?? t.CreateDate ?? t.DateTimeDigitized ?? t.ModifyDate),
+      decalageExifMinutes: decalageExif(t.OffsetTimeOriginal ?? t.OffsetTime),
+      latitude: gps && Number.isFinite(gps.latitude) ? gps.latitude : null,
+      longitude: gps && Number.isFinite(gps.longitude) ? gps.longitude : null,
+      appareil: marque || modele ? { cle: [marque, modele, serie].join("|"), libelle: libelle || "Appareil inconnu" } : null,
+    };
+  } catch {
+    return vide;
+  }
+}
+
+/* ----------------------------- Décodage ------------------------------ */
+
+/** Le plus grand JPEG intégré à un fichier RAW (aperçu « taille réelle » le plus souvent). */
+export async function apercuRaw(f: Blob): Promise<Blob | null> {
+  const octets = new Uint8Array(await f.arrayBuffer());
+  let meilleur: [number, number] | null = null;
+  for (let i = 0; i < octets.length - 3; i++) {
+    if (octets[i] !== 0xff || octets[i + 1] !== 0xd8 || octets[i + 2] !== 0xff) continue;
+    // Parcours des segments JPEG jusqu'au début des données (SOS), puis recherche de la fin (EOI).
+    let j = i + 2;
+    let valide = false;
+    while (j < octets.length - 4 && octets[j] === 0xff) {
+      const marqueur = octets[j + 1];
+      const longueur = (octets[j + 2] << 8) | octets[j + 3];
+      if (marqueur === 0xda) {
+        valide = true;
+        j += 2 + longueur;
+        break;
+      }
+      j += 2 + longueur;
+    }
+    if (!valide) continue;
+    while (j < octets.length - 1 && !(octets[j] === 0xff && octets[j + 1] === 0xd9)) j++;
+    const fin = j + 2;
+    if (!meilleur || fin - i > meilleur[1] - meilleur[0]) meilleur = [i, fin];
+    i = fin - 1;
+  }
+  return meilleur && meilleur[1] - meilleur[0] > 50_000 ? new Blob([octets.slice(meilleur[0], meilleur[1])], { type: "image/jpeg" }) : null;
+}
+
+async function estHeic(f: Blob) {
+  const tete = new Uint8Array(await f.slice(0, 32).arrayBuffer());
+  const marque = String.fromCharCode(...tete.slice(8, 12));
+  return ["heic", "heix", "hevc", "heim", "heis", "mif1", "msf1"].includes(marque);
+}
+
+/** Décode une image en ImageBitmap orientée selon l'EXIF ; HEIC et RAW compris. */
+export async function decoder(f: Blob, nom: string): Promise<{ image: ImageBitmap; avertissement?: string }> {
+  const source = estRaw(nom) ? await apercuRaw(f) : f;
+  if (!source) throw new Error("Ce fichier RAW ne contient pas d'aperçu : il sera conservé, sans vignette.");
+  try {
+    return { image: await createImageBitmap(source, { imageOrientation: "from-image" }) };
+  } catch (e) {
+    if (!(await estHeic(source))) throw e;
+    // Chrome, Firefox, Edge ne savent pas décoder le HEIC : bibliothèque wasm.
+    const { heicTo } = await import("heic-to");
+    const jpeg = await heicTo({ blob: source, type: "image/jpeg", quality: 0.92 });
+    return { image: await createImageBitmap(jpeg, { imageOrientation: "from-image" }) };
+  }
+}
+
+/* --------------------- Empreinte et versions web --------------------- */
+
+function canevas(l: number, h: number) {
+  const c = new OffscreenCanvas(l, h);
+  const ctx = c.getContext("2d", { willReadFrequently: false })!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  return { c, ctx };
+}
+
+/** dHash 64 bits : on réduit à 9×8 en gris et on compare chaque pixel à son voisin de droite. */
+export function dhash(image: CanvasImageSource & { width: number; height: number }): string {
+  const { ctx } = canevas(9, 8);
+  ctx.drawImage(image, 0, 0, 9, 8);
+  const p = ctx.getImageData(0, 0, 9, 8).data;
+  const gris = (x: number, y: number) => {
+    const i = (y * 9 + x) * 4;
+    return 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+  };
+  let bits = 0n;
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) bits = (bits << 1n) | (gris(x, y) > gris(x + 1, y) ? 1n : 0n);
+  return bits.toString(16).padStart(16, "0");
+}
+
+let webpNatif: boolean | undefined;
+
+async function encoderWebp(c: OffscreenCanvas, qualite = 0.82): Promise<Blob> {
+  if (webpNatif !== false) {
+    const b = await c.convertToBlob({ type: "image/webp", quality: qualite });
+    webpNatif = b.type === "image/webp";
+    if (webpNatif) return b;
+  }
+  // Safari n'encode pas le WebP : encodeur wasm, identique partout.
+  const { default: encode } = await import("@jsquash/webp/encode");
+  const ctx = c.getContext("2d")!;
+  const donnees = ctx.getImageData(0, 0, c.width, c.height);
+  return new Blob([await encode(donnees, { quality: Math.round(qualite * 100) })], { type: "image/webp" });
+}
+
+/** Réduit par paliers (meilleure qualité qu'un seul redimensionnement) et encode en WebP. */
+export async function versionWeb(image: CanvasImageSource & { width: number; height: number }, cote: number) {
+  let source: CanvasImageSource & { width: number; height: number } = image;
+  const echelle = Math.min(1, cote / Math.max(image.width, image.height));
+  const cibleL = Math.max(1, Math.round(image.width * echelle));
+  const cibleH = Math.max(1, Math.round(image.height * echelle));
+  while (source.width / 2 > cibleL * 1.5) {
+    const { c, ctx } = canevas(Math.round(source.width / 2), Math.round(source.height / 2));
+    ctx.drawImage(source, 0, 0, c.width, c.height);
+    source = c;
+  }
+  const { c, ctx } = canevas(cibleL, cibleH);
+  ctx.drawImage(source, 0, 0, cibleL, cibleH);
+  return encoderWebp(c);
+}
+
+/* --------------------------- Analyse photo --------------------------- */
+
+export async function analyserPhoto(f: File, progression?: (f: number) => void): Promise<Analyse> {
+  const [sha256, exif] = await Promise.all([empreinteSha256(f, (x) => progression?.(x * 0.5)), lireExif(f)]);
+  const base: Analyse = {
+    type: "photo",
+    mime: mimeDeFichier(f),
+    sha256,
+    dhash: null,
+    largeur: null,
+    hauteur: null,
+    dureeSecondes: null,
+    ...exif,
+    versions: {},
+  };
+  try {
+    const { image } = await decoder(f, f.name);
+    base.largeur = image.width;
+    base.hauteur = image.height;
+    base.dhash = dhash(image);
+    base.versions.s = await versionWeb(image, TAILLES_VERSIONS.s);
+    progression?.(0.7);
+    base.versions.m = await versionWeb(image, TAILLES_VERSIONS.m);
+    progression?.(0.85);
+    if (Math.max(image.width, image.height) > TAILLES_VERSIONS.m) base.versions.l = await versionWeb(image, TAILLES_VERSIONS.l);
+    image.close();
+  } catch (e) {
+    base.avertissement = e instanceof Error && e.message.startsWith("Ce fichier") ? e.message : "Aperçu impossible : l'original sera conservé tel quel.";
+  }
+  progression?.(1);
+  return base;
+}
+
+export { extension, typeDeFichier };

@@ -23,6 +23,9 @@ L'intégration ajoute `DATABASE_URL` toute seule. Les tables sont créées au pr
 | `GMAIL_USER` | ton adresse Gmail : les e-mails partent de là | oui (ou Resend) |
 | `GMAIL_APP_PASSWORD` | mot de passe d'application Google (voir ci-dessous) | oui (ou Resend) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | alternative à Gmail, seulement avec un domaine vérifié | non |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | compte Cloudflare et clé d'API R2 (Object Read & Write, limitée au bucket) | oui |
+| `R2_BUCKET` | `clic-clac-voyage` | oui |
+| `R2_JURIDICTION` | `eu` si le bucket est sous juridiction Union européenne | selon le bucket |
 | `APP_URL` | vide : l'URL de production Vercel est utilisée. À remplir le jour où un domaine est branché (`https://clic-clac-voyage.fr`) | non |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | identifiants OAuth Google, URI de redirection `<APP_URL>/api/auth/callback/google` | non |
 
@@ -35,7 +38,13 @@ L'intégration ajoute `DATABASE_URL` toute seule. Les tables sont créées au pr
 Gmail accepte environ 500 envois par jour : largement assez pour les codes de connexion et les invitations.
 Les e-mails partent de ton adresse, avec « Clic-Clac Voyage » comme nom d'expéditeur.
 
-## 4. Développement local
+## 4. Bucket Cloudflare R2
+
+- Juridiction **European Union** (garantit que les photos restent dans l'UE ; un simple « location hint » n'est qu'indicatif).
+- CORS : origines de l'app, méthodes `GET, PUT, HEAD`, en-têtes `*`, en-tête exposé `ETag` (indispensable à l'envoi en morceaux).
+- Règle de cycle de vie : « Abort incomplete multipart uploads after 7 days ».
+
+## 5. Développement local
 
 ```bash
 pnpm install

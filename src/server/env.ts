@@ -24,6 +24,15 @@ const schema = z.object({
   EMAIL_FROM: z.string().optional(),
   // Si défini, les e-mails sont écrits dans ce fichier au lieu d'être envoyés (dev, tests E2E).
   MAIL_OUTBOX_FILE: z.string().optional(),
+  // Stockage Cloudflare R2 (API S3).
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  // Juridiction du bucket (« eu » pour garantir un stockage dans l'Union européenne), vide sinon.
+  R2_JURIDICTION: z.enum(["eu", "fedramp", "us"]).optional().or(z.literal("").transform(() => undefined)),
+  // Dossier du stockage local (développement, tests) quand R2 n'est pas configuré.
+  STOCKAGE_LOCAL: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 });

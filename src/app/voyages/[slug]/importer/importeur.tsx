@@ -1,0 +1,209 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { fileEnvoi, type Element } from "@/lib/import/file-envoi";
+import { fichiersDepuisDepot } from "./dossiers";
+
+const ACCEPT =
+  "image/*,video/*,.heic,.heif,.hif,.dng,.cr2,.cr3,.nef,.nrw,.arw,.raf,.orf,.rw2,.pef,.srw,.mov,.mp4,.m4v";
+
+function useEnLigne() {
+  return useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("online", cb);
+      window.addEventListener("offline", cb);
+      return () => {
+        window.removeEventListener("online", cb);
+        window.removeEventListener("offline", cb);
+      };
+    },
+    () => navigator.onLine,
+    () => true,
+  );
+}
+
+function taille(o: number) {
+  if (o < 1024 * 1024) return `${Math.max(1, Math.round(o / 1024))} Ko`;
+  if (o < 1024 ** 3) return `${(o / 1024 / 1024).toFixed(1).replace(".", ",")} Mo`;
+  return `${(o / 1024 ** 3).toFixed(2).replace(".", ",")} Go`;
+}
+
+const LIBELLE: Record<Element["etat"], string> = {
+  attente: "En attente",
+  analyse: "Préparation",
+  envoi: "Envoi",
+  termine: "Envoyé",
+  doublon: "Déjà dans le voyage",
+  erreur: "Erreur",
+};
+
+export function Importeur({ voyage }: { voyage: string }) {
+  const file = useMemo(() => fileEnvoi(voyage), [voyage]);
+  const [elements, setElements] = useState<Element[]>([]);
+  const [survol, setSurvol] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const enReseau = useEnLigne();
+  const choix = useRef<HTMLInputElement>(null);
+  const dossier = useRef<HTMLInputElement>(null);
+
+  useEffect(() => file.abonner(setElements), [file]);
+
+  async function ajouter(fichiers: File[]) {
+    const { ajoutes, ignores } = await file.ajouter(fichiers);
+    setMessage(
+      `${ajoutes} fichier${ajoutes > 1 ? "s" : ""} ajouté${ajoutes > 1 ? "s" : ""} à l’envoi` +
+        (ignores ? ` (${ignores} ignoré${ignores > 1 ? "s" : ""} : ni photo ni vidéo)` : "."),
+    );
+  }
+
+  const stats = useMemo(() => {
+    const s = { total: elements.length, termines: 0, doublons: 0, erreurs: 0, actifs: 0, octets: 0, octetsFaits: 0 };
+    for (const e of elements) {
+      if (e.etat === "termine") s.termines++;
+      else if (e.etat === "doublon") s.doublons++;
+      else if (e.etat === "erreur") s.erreurs++;
+      else s.actifs++;
+      if (e.etat !== "doublon" && e.etat !== "erreur") {
+        s.octets += e.taille;
+        s.octetsFaits += e.etat === "termine" ? e.taille : e.etat === "envoi" ? e.taille * e.progression : 0;
+      }
+    }
+    return s;
+  }, [elements]);
+
+  const visibles = elements.filter((e) => e.etat !== "termine" && e.etat !== "doublon").slice(0, 200);
+
+  return (
+    <div className="space-y-8">
+      <section
+        onDragOver={(e) => {
+          e.preventDefault();
+          setSurvol(true);
+        }}
+        onDragLeave={() => setSurvol(false)}
+        onDrop={async (e) => {
+          e.preventDefault();
+          setSurvol(false);
+          await ajouter(await fichiersDepuisDepot(e.dataTransfer));
+        }}
+        className={`flex flex-col items-center gap-4 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
+          survol ? "border-accent bg-papier-2" : "border-filet"
+        }`}
+      >
+        <p className="font-titre text-2xl">Ajoutez vos photos et vidéos</p>
+        <p className="max-w-md text-sm text-encre-douce">
+          Choisissez-les dans la galerie de votre téléphone, ou glissez ici des fichiers et des dossiers entiers depuis
+          votre ordinateur. Les originaux sont conservés en pleine qualité, et les doublons sont écartés.
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button type="button" className="bouton" onClick={() => choix.current?.click()}>
+            Choisir des photos et vidéos
+          </button>
+          <button type="button" className="bouton-discret hidden sm:inline-flex" onClick={() => dossier.current?.click()}>
+            Choisir un dossier
+          </button>
+        </div>
+        <input
+          ref={choix}
+          type="file"
+          multiple
+          accept={ACCEPT}
+          className="sr-only"
+          data-testid="choisir-fichiers"
+          onChange={async (e) => {
+            await ajouter([...(e.target.files ?? [])]);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={dossier}
+          type="file"
+          multiple
+          className="sr-only"
+          {...{ webkitdirectory: "" }}
+          onChange={async (e) => {
+            await ajouter([...(e.target.files ?? [])]);
+            e.target.value = "";
+          }}
+        />
+        {message ? (
+          <p role="status" className="text-sm text-succes">
+            {message}
+          </p>
+        ) : null}
+      </section>
+
+      {stats.total > 0 ? (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-2xl">Envoi</h2>
+            <p className="text-sm text-encre-douce" data-testid="bilan-envoi">
+              {stats.termines} envoyé{stats.termines > 1 ? "s" : ""}
+              {stats.doublons ? ` · ${stats.doublons} déjà présent${stats.doublons > 1 ? "s" : ""}` : ""}
+              {stats.actifs ? ` · ${stats.actifs} en cours` : ""}
+              {stats.erreurs ? ` · ${stats.erreurs} en erreur` : ""}
+            </p>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-papier-2"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round((stats.octetsFaits / Math.max(1, stats.octets)) * 100)}
+          >
+            <div className="h-full bg-encre transition-all" style={{ width: `${(stats.octetsFaits / Math.max(1, stats.octets)) * 100}%` }} />
+          </div>
+          {!enReseau ? (
+            <p className="rounded-md border border-filet bg-papier-2 px-3 py-2 text-sm">
+              Pas de réseau : l’envoi reprendra tout seul dès le retour de la connexion, même si vous fermez l’app.
+            </p>
+          ) : stats.actifs ? (
+            <p className="text-sm text-encre-douce">
+              Sur iPhone, gardez l’app ouverte pendant l’envoi. Si vous la fermez, il reprendra à la prochaine ouverture.
+            </p>
+          ) : null}
+
+          {visibles.length ? (
+            <ul className="divide-y divide-filet border-y border-filet">
+              {visibles.map((e) => (
+                <li key={e.id} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">{e.nom}</p>
+                    <p className={`text-xs ${e.etat === "erreur" ? "text-danger" : "text-encre-douce"}`}>
+                      {LIBELLE[e.etat]}
+                      {e.etat === "envoi" || e.etat === "analyse" ? ` · ${Math.round(e.progression * 100)} %` : ""} ·{" "}
+                      {taille(e.taille)}
+                      {e.erreur && e.etat !== "termine" ? ` · ${e.erreur}` : ""}
+                    </p>
+                  </div>
+                  {e.etat === "erreur" ? (
+                    <button type="button" className="min-h-11 px-2 text-sm text-encre-douce hover:text-encre" onClick={() => file.reessayer(e.id)}>
+                      Réessayer
+                    </button>
+                  ) : null}
+                  {e.etat === "attente" || e.etat === "erreur" ? (
+                    <button type="button" className="min-h-11 px-2 text-sm text-danger" onClick={() => file.annuler(e.id)}>
+                      Retirer
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          <div className="flex flex-wrap gap-3">
+            <Link href={`/voyages/${voyage}/photos`} className="bouton-discret">
+              Voir les photos
+            </Link>
+            {stats.termines + stats.doublons > 0 ? (
+              <button type="button" className="bouton-discret" onClick={() => file.retirerTermines()}>
+                Effacer la liste des fichiers envoyés
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
