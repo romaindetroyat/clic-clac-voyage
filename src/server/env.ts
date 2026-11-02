@@ -35,6 +35,10 @@ const schema = z.object({
   STOCKAGE_LOCAL: z.string().optional(),
   // Limite anti-abus des envois de codes (par minute et par adresse IP). Relevée seulement pour les tests E2E.
   CODES_PAR_MINUTE: z.coerce.number().int().positive().max(1000).optional(),
+  // IA (Anthropic) : facultative. Sans clé, les fonctions d'IA sont simplement masquées.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  // Plafond des dépenses d'IA pour toute l'application, en euros par mois.
+  IA_BUDGET_MENSUEL_EUR: z.coerce.number().min(0).max(100).default(3),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 });

@@ -34,7 +34,9 @@ import {
 import { formaterDecalage, lireDecalage } from "@/server/domaine/temps";
 import { courrielInvitation } from "@/server/email/modeles";
 import { envoyerCourriel } from "@/server/email/envoi";
-import { appUrl } from "@/server/env";
+import { adminEmails, appUrl } from "@/server/env";
+import { appelIa, iaActive } from "@/server/ia/client";
+import { proposerMaj, rejeterMaj, validerMaj } from "@/server/ia/imprimeurs";
 import {
   annulerInvitation,
   changerRole,
@@ -368,4 +370,43 @@ export async function actionSupprimerCompte(_: EtatAction, form: FormData): Prom
   const pot = await cookies();
   for (const c of pot.getAll()) if (c.name.includes("better-auth")) pot.delete(c.name);
   redirect("/?compte=supprime");
+}
+
+/* ------------------------------------------------------------------ */
+/* Mise à jour des fiches imprimeurs par l'IA (administrateurs de l'app) */
+/* ------------------------------------------------------------------ */
+
+async function exigerAdminApp(slug: string) {
+  const a = await exigerVoyage(slug);
+  if (!adminEmails().includes(a.utilisateur.email.toLowerCase())) throw new ErreurMetier("Réservé aux administrateurs de l’application.");
+  return a;
+}
+
+export async function actionMajImprimeurIa(slug: string, imprimeurId: string): Promise<EtatAction> {
+  return proteger(async () => {
+    const { utilisateur } = await exigerAdminApp(slug);
+    if (!iaActive()) throw new ErreurMetier("L’IA n’est pas configurée (clé d’API absente).");
+    const r = await proposerMaj(await getDb(), appelIa(), imprimeurId, utilisateur.id);
+    revalidatePath(`/voyages/${slug}/imprimeurs`);
+    return { message: r.propositions.length ? `${r.propositions.length} changement${r.propositions.length > 1 ? "s" : ""} proposé${r.propositions.length > 1 ? "s" : ""} : à valider ci-dessous.` : "Rien à changer d’après l’IA : validez pour dater la vérification." };
+  });
+}
+
+export async function actionValiderMaj(slug: string, majId: string, _: EtatAction, form: FormData): Promise<EtatAction> {
+  return proteger(async () => {
+    await exigerAdminApp(slug);
+    const acceptees = form.getAll("p").map(Number).filter(Number.isInteger);
+    await validerMaj(await getDb(), majId, acceptees);
+    revalidatePath(`/voyages/${slug}/imprimeurs`);
+    return { message: "Fiche mise à jour." };
+  });
+}
+
+export async function actionRejeterMaj(slug: string, majId: string): Promise<EtatAction> {
+  return proteger(async () => {
+    await exigerAdminApp(slug);
+    await rejeterMaj(await getDb(), majId);
+    revalidatePath(`/voyages/${slug}/imprimeurs`);
+    return undefined;
+  });
 }

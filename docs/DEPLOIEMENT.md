@@ -27,6 +27,8 @@ L'intégration ajoute `DATABASE_URL` toute seule. Les tables sont créées au pr
 | `R2_BUCKET` | `clic-clac-voyage` | oui |
 | `R2_JURIDICTION` | `eu` si le bucket est sous juridiction Union européenne | selon le bucket |
 | `APP_URL` | vide : l'URL de production Vercel est utilisée. À remplir le jour où un domaine est branché (`https://clic-clac-voyage.fr`) | non |
+| `ANTHROPIC_API_KEY` | clé d'API Anthropic (voir ci-dessous) : active le départage des rafales et la mise à jour des fiches imprimeurs par l'IA | non |
+| `IA_BUDGET_MENSUEL_EUR` | plafond des dépenses d'IA par mois, en euros (3 par défaut) | non |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | identifiants OAuth Google, URI de redirection `<APP_URL>/api/auth/callback/google` | non |
 
 ### Mot de passe d'application Gmail
@@ -34,6 +36,14 @@ L'intégration ajoute `DATABASE_URL` toute seule. Les tables sont créées au pr
 1. La validation en deux étapes doit être active sur le compte Google.
 2. Aller sur https://myaccount.google.com/apppasswords, créer un mot de passe nommé « Clic-Clac Voyage ».
 3. Copier les 16 caractères dans `GMAIL_USER`/`GMAIL_APP_PASSWORD` sur Vercel (jamais dans le dépôt).
+
+### Clé d'API Anthropic (IA)
+
+1. Créer un compte sur https://console.anthropic.com, ajouter un moyen de paiement et quelques euros de crédit.
+2. Dans **Settings → Limits**, fixer une limite de dépense mensuelle (par exemple 5 $) : c'est le second garde-fou, en plus du plafond de l'app.
+3. **API Keys → Create Key**, nom « Clic-Clac Voyage », puis coller la clé dans `ANTHROPIC_API_KEY` sur Vercel (jamais dans le dépôt ni dans un message), et redéployer.
+
+Sans clé, les boutons d'IA n'apparaissent pas. Ordres de grandeur : environ 4 centimes par rafale départagée, 20 à 60 centimes par fiche imprimeur vérifiée.
 
 Gmail accepte environ 500 envois par jour : largement assez pour les codes de connexion et les invitations.
 Les e-mails partent de ton adresse, avec « Clic-Clac Voyage » comme nom d'expéditeur.

@@ -23,7 +23,7 @@
 | IMPR-01 imprimeurs retenus | ✅ 8 fiches (Saal Digital, Blurb, Fotofabriek, Pixartprinting, CEWE, Lulu, Gelato, Prodigi) dans `src/lib/imprimeurs/catalogue.ts`, relevées le 2 novembre 2026 (second relevé le même jour) |
 | IMPR-02 règles appliquées par l'éditeur | ✅ choisir un produit donne au livre son format, ses pages (min, max, pas), ses marges de sécurité et de reliure, son fond perdu et son dos (table Fotofabriek) ; les contrôles du livre suivent |
 | IMPR-03 fiches | ✅ formats, papier, prix (base + page supplémentaire), port, délais, note Trustpilot datée, lien ; chaque valeur porte sa source et son statut (vérifié, secondaire, non vérifié) ; ⏳ beaucoup de prix et de ports sont derrière des configurateurs : non vérifiés, affichés comme tels |
-| IMPR-04 mise à jour par l'IA | ⏳ tranche 2 (clé d'API Anthropic à décider) |
+| IMPR-04 mise à jour par l'IA | ✅ recherche web (Claude Opus 5.5), propositions sourcées validées par un administrateur de l'app, date de vérification affichée |
 | IMPR-05, 06 comparateur, classement | ✅ coût réel pour le livre et le nombre d'exemplaires du groupe, exclusions motivées (CEWE : pas de PDF en France ; forme ; pages max), tri prix / note / délai / score combiné, incertitudes listées |
 | IMPR-07 le choix réadapte le livre | ✅ version gardée avant, gabarits recalculés, alertes à jour |
 | LIV-11 export par imprimeur | ✅ profils : intérieur et couverture séparés ; doubles pages (Saal) ; PDF unique couverture étalée + gardes (Gelato, Pixartprinting) ; PDF unique en pages simples sans fond perdu (Prodigi) ; fond perdu de couverture propre (CEWE 10 mm) ; ⏳ conversion CMJN et PDF/X (Ghostscript indisponible sur Vercel) : signalée dans le comparateur |
@@ -77,7 +77,7 @@
 | REC-06 légende de l'auteur, commentaires signés, réactions | ✅ |
 | REC-09 galeries fluides | ✅ virtualisées ; visionneuse avec balayage et clavier |
 | REC-05 rafales et meilleure photo | ✅ netteté (variance du laplacien) et exposition mesurées dans le navigateur ; rafale = même appareil, ≤ 10 s, même scène ; choix d'un clic conservé |
-| REC-10 IA de vision pour départager (yeux ouverts, cadrage) | ⏳ nécessite une clé d'API et un budget plafonné : à décider |
+| REC-10 IA de vision pour départager (yeux ouverts, cadrage) | ✅ seulement les rafales à égalité (écart ≤ 5 points), jamais un choix manuel ; budget mensuel plafonné (IA_BUDGET_MENSUEL_EUR) |
 | REC-07 retouches non destructives | ✅ recadrage (proportions, zoom, position), quarts de tour, redressement, lumière, contraste, hautes lumières, ombres, blancs, noirs, température, teinte, saturation, 4 filtres sobres |
 | REC-08 rendu identique écran / site / PDF | ✅ un seul moteur (shader WebGL2) pour l'aperçu et les versions web ; référence CPU ; équivalence testée en E2E (ΔE ≈ 0) ; page /verification-rendu pour les vrais téléphones ; ⏳ rendu PDF par le même moteur en phase 5 |
 

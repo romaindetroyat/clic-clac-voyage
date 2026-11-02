@@ -288,6 +288,8 @@ export const media = pgTable(
     rafaleId: text("rafale_id"),
     // Photo retenue dans sa rafale (proposée automatiquement, modifiable d'un clic).
     choixRafale: boolean("choix_rafale").notNull().default(false),
+    // Choix fait à la main (l'IA ne revient jamais dessus).
+    choixManuel: boolean("choix_manuel").notNull().default(false),
 
     // Récit et sélection
     episodeId: text("episode_id").references(() => episode.id, { onDelete: "set null" }),
@@ -407,4 +409,73 @@ export const commandeLivre = pgTable(
     ...horodatage,
   },
   (t) => [uniqueIndex("commande_voyage_user_unique").on(t.voyageId, t.userId)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Intelligence artificielle (budget plafonné)                          */
+/* ------------------------------------------------------------------ */
+
+export const usageIa = pgEnum("usage_ia", ["rafale", "imprimeur"]);
+
+/** Chaque appel à l'API d'IA, avec son coût : sert à tenir le budget mensuel. */
+export const depenseIa = pgTable(
+  "depense_ia",
+  {
+    id: text("id").primaryKey(),
+    voyageId: text("voyage_id").references(() => voyage.id, { onDelete: "set null" }),
+    usage: usageIa("usage").notNull(),
+    // Mois de la dépense (AAAA-MM, UTC).
+    mois: text("mois").notNull(),
+    // Coût en millionièmes de dollar.
+    coutMicroUsd: bigint("cout_micro_usd", { mode: "number" }).notNull(),
+    jetonsEntree: integer("jetons_entree").notNull().default(0),
+    jetonsSortie: integer("jetons_sortie").notNull().default(0),
+    recherches: integer("recherches").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("depense_ia_mois_idx").on(t.mois)],
+);
+
+/** Rafales départagées par l'IA : la photo retenue et pourquoi. */
+export const rafaleIa = pgTable(
+  "rafale_ia",
+  {
+    voyageId: text("voyage_id")
+      .notNull()
+      .references(() => voyage.id, { onDelete: "cascade" }),
+    rafaleId: text("rafale_id").notNull(),
+    // Null si l'IA n'a pas pu trancher (refus, réponse illisible) : on ne repaie pas.
+    mediaId: text("media_id"),
+    raison: text("raison"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.voyageId, t.rafaleId] })],
+);
+
+export const statutMajImprimeur = pgEnum("statut_maj_imprimeur", ["proposee", "validee", "rejetee"]);
+
+export type PropositionImprimeur = {
+  champ: string;
+  produitId: string | null;
+  actuelle: number | null;
+  proposee: number;
+  source: string;
+  extrait: string;
+  acceptee?: boolean;
+};
+
+/** Mises à jour des fiches imprimeurs proposées par l'IA, validées par un administrateur de l'app. */
+export const majImprimeur = pgTable(
+  "maj_imprimeur",
+  {
+    id: text("id").primaryKey(),
+    imprimeurId: text("imprimeur_id").notNull(),
+    statut: statutMajImprimeur("statut").notNull().default("proposee"),
+    propositions: jsonb("propositions").$type<PropositionImprimeur[]>().notNull().default([]),
+    resume: text("resume"),
+    demandePar: text("demande_par").references(() => user.id, { onDelete: "set null" }),
+    verifieLe: timestamp("verifie_le", { withTimezone: true }),
+    ...horodatage,
+  },
+  (t) => [index("maj_imprimeur_idx").on(t.imprimeurId, t.statut)],
 );

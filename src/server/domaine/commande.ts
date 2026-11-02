@@ -4,6 +4,7 @@
  */
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { imprimeurParId } from "@/lib/imprimeurs/catalogue";
+import { catalogueEffectif } from "../ia/imprimeurs";
 import { enEuros, prixExemplaire, prixPort } from "@/lib/imprimeurs/comparateur";
 import { recapitulatif, type Recapitulatif } from "@/lib/imprimeurs/parts";
 import type { Imprimeur, Produit } from "@/lib/imprimeurs/types";
@@ -24,7 +25,8 @@ export async function choixImprimeur(db: Db, voyageId: string): Promise<{ imprim
   const r = l ? schemaLivre.safeParse(l.contenu) : null;
   if (!r?.success) return null;
   const [imp, prod] = r.data.formatId.split(":");
-  const imprimeur = imprimeurParId(imp);
+  // Prix, port et délais à jour (corrections validées par l'administrateur appliquées).
+  const imprimeur = (await catalogueEffectif(db)).find((i) => i.id === imp);
   const produit = imprimeur?.produits.find((p) => p.id === prod);
   return imprimeur && produit ? { imprimeur, produit, pages: r.data.pages.length } : null;
 }
