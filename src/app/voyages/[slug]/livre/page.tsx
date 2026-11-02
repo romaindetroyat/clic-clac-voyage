@@ -1,4 +1,5 @@
 import { periode } from "@/lib/dates";
+import { formatParId } from "@/lib/livre/formats";
 import { lireConfig } from "@/lib/site/config";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
@@ -9,8 +10,9 @@ import { EditeurLivre } from "./editeur";
 
 export const metadata = { title: "Livre" };
 
-export default async function PageLivre({ params }: PageProps<"/voyages/[slug]/livre">) {
+export default async function PageLivre({ params, searchParams }: PageProps<"/voyages/[slug]/livre">) {
   const { slug } = await params;
+  const choixImprimeur = (await searchParams).imprimeur === "1";
   const { voyage, estAdmin } = await accesVoyage(slug);
   if (!estAdmin) return <p className="text-encre-douce">Le livre est mis en page par les administrateurs du voyage.</p>;
   const db = await getDb();
@@ -25,7 +27,15 @@ export default async function PageLivre({ params }: PageProps<"/voyages/[slug]/l
   const noms = participants.map((p) => p.nom).filter(Boolean);
   const fin = noms.length || motDeLaFin ? { titre: "Les voyageurs", corps: [noms.join(", "), motDeLaFin].filter(Boolean).join("\n\n") } : null;
 
+  const format = livre ? formatParId(livre.contenu.formatId) : null;
   return (
+    <>
+      {choixImprimeur && format?.imprimeurId ? (
+        <p role="status" className="mb-6 rounded-lg border border-filet bg-papier-2 p-3 text-sm">
+          Le livre suit maintenant les règles de <strong>{format.nom}</strong> : format, marges de sécurité, nombre de pages ({format.pagesMin} à{" "}
+          {format.pagesMax}, par {format.multiple}). Vérifiez les alertes ci-dessous ; refaites la mise en page automatique si besoin.
+        </p>
+      ) : null}
     <EditeurLivre
       slug={slug}
       nom={voyage.nom}
@@ -38,5 +48,6 @@ export default async function PageLivre({ params }: PageProps<"/voyages/[slug]/l
       revisionInitiale={livre?.revision ?? null}
       versionsInitiales={versions}
     />
+    </>
   );
 }

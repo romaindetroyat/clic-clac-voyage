@@ -18,6 +18,8 @@ export default async function LayoutVoyage({ children, params }: LayoutProps<"/v
     { href: `${base}/importer`, libelle: "Importer" },
     { href: `${base}/appareils`, libelle: "Appareils" },
     { href: `${base}/participants`, libelle: "Participants" },
+    { href: `${base}/imprimeurs`, libelle: "Imprimeurs" },
+    { href: `${base}/commande`, libelle: "Commande" },
     ...(estAdmin
       ? [
           { href: `${base}/site`, libelle: "Site" },

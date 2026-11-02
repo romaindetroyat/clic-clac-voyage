@@ -1,7 +1,10 @@
 /**
- * Formats de livre génériques, en attendant les fiches des imprimeurs (phase 6) qui
- * apporteront leurs propres contraintes. Toutes les mesures sont en millimètres, format fini (rogné).
+ * Formats de livre : génériques, ou issus d'un produit d'imprimeur (ses règles de pages,
+ * de marges et de dos). Toutes les mesures sont en millimètres, format fini (rogné).
  */
+import { imprimeurParId } from "@/lib/imprimeurs/catalogue";
+import { formatDepuisProduit } from "@/lib/imprimeurs/comparateur";
+
 export type Papier = { nom: string; grammage: number; main: number };
 
 export type Format = {
@@ -24,6 +27,8 @@ export type Format = {
   tableDos?: [number, number][];
   /** Titre sur le dos à partir de cette épaisseur. */
   dosTitreMin: number;
+  /** Format d'un imprimeur précis (règles et profil d'export), sinon format générique. */
+  imprimeurId?: string;
 };
 
 const satine: Papier = { nom: "Couché satiné 170 g", grammage: 170, main: 0.9 };
@@ -38,7 +43,14 @@ export const FORMATS: Format[] = [
   { id: "a4-paysage", nom: "A4 paysage 29,7 × 21 cm", largeur: 297, hauteur: 210, ...commun },
 ];
 
+/** Format générique, ou format d'un produit d'imprimeur (« imprimeur:produit »). */
 export function formatParId(id: string): Format {
+  const [imp, prod] = id.split(":");
+  if (prod) {
+    const i = imprimeurParId(imp);
+    const p = i?.produits.find((x) => x.id === prod);
+    if (i && p) return formatDepuisProduit(i, p);
+  }
   return FORMATS.find((f) => f.id === id) ?? FORMATS[0];
 }
 

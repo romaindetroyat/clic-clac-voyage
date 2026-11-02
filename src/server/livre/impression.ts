@@ -11,11 +11,11 @@
  */
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { PDFDocument, PDFName, PDFString } from "@cantoo/pdf-lib";
+import { clip, endPath, PDFDocument, PDFName, PDFString, popGraphicsState, pushGraphicsState, rectangle } from "@cantoo/pdf-lib";
 import { and, eq, inArray } from "drizzle-orm";
 import { rectSource } from "@/lib/livre/cadrage";
 import { DPI_ALERTE, DPI_BLOQUANT, controler } from "@/lib/livre/controles";
-import { formatParId, type Format } from "@/lib/livre/formats";
+import { epaisseurDos, formatParId, type Format } from "@/lib/livre/formats";
 import { geometrieCouverture, geometriePage, type Rect } from "@/lib/livre/gabarits";
 import type { Cellule, Livre, MediaLivre } from "@/lib/livre/modele";
 import { empreinteRetouche, estNeutre, schemaRetouche, type Retouche } from "@/lib/rendu/parametres";
@@ -24,7 +24,8 @@ import { livre as tableLivre, media } from "../db/schema";
 import { dimensionsEffectives, livreDe } from "../domaine/livre";
 import { ErreurMetier } from "../domaine/voyages";
 import type { Stockage } from "../stockage/types";
-import { geometrieCouvertureComplete, sourceCouverture, sourceInterieur } from "./typst";
+import { fichiersPdf, profilDe, type Feuille } from "./feuilles";
+import { sourceFeuilles } from "./typst";
 
 export const DPI = 300;
 const PT = 72 / 25.4;
@@ -187,26 +188,35 @@ export async function compilerTypst(source: string): Promise<Uint8Array> {
   return new Uint8Array(c.pdf({ mainFileContent: source }, { pdfTags: false }));
 }
 
-/** Pose les images sur les pages (coordonnées PDF : origine en bas à gauche, en points). */
-async function poserImages(
-  doc: PDFDocument,
-  stockage: Stockage,
-  images: ImageAImprimer[],
-  page: (numero: number) => { index: number; dx: number; dy: number } | null,
-) {
+/**
+ * Pose les images de chaque feuille, découpées à la zone de leur page logique (une photo
+ * pleine page ne déborde jamais sur la page d'en face). Origine PDF en bas à gauche, en points.
+ */
+async function poserImages(doc: PDFDocument, stockage: Stockage, images: ImageAImprimer[], feuilles: Feuille[]) {
+  const pageDe = (c: Feuille["vues"][number]["contenu"]) => (c.type === "page" ? c.numero : c.type === "premiere" ? 0 : -1);
   for (const img of images) {
-    const cibles = img.emplacements.map((e) => ({ e, p: page(e.page) })).filter((x) => x.p);
-    if (!cibles.length) continue;
+    const poses: { index: number; x: number; y: number; l: number; h: number; clip: Rect; hauteur: number }[] = [];
+    feuilles.forEach((fe, index) => {
+      for (const v of fe.vues) {
+        for (const e of img.emplacements) {
+          if (e.page !== pageDe(v.contenu)) continue;
+          poses.push({ index, x: v.dx + e.cadre.x, y: v.dy + e.cadre.y, l: e.cadre.l, h: e.cadre.h, clip: v.clip, hauteur: fe.hauteur });
+        }
+      }
+    });
+    if (!poses.length) continue;
     const jpeg = await doc.embedJpg(await stockage.lire(img.cle));
-    for (const { e, p } of cibles) {
-      const pg = doc.getPage(p!.index);
-      const hauteur = pg.getHeight();
-      pg.drawImage(jpeg, {
-        x: (p!.dx + e.cadre.x) * PT,
-        y: hauteur - (p!.dy + e.cadre.y + e.cadre.h) * PT,
-        width: e.cadre.l * PT,
-        height: e.cadre.h * PT,
-      });
+    for (const p of poses) {
+      const pg = doc.getPage(p.index);
+      const H = p.hauteur;
+      pg.pushOperators(
+        pushGraphicsState(),
+        rectangle(p.clip.x * PT, (H - p.clip.y - p.clip.h) * PT, p.clip.l * PT, p.clip.h * PT),
+        clip(),
+        endPath(),
+      );
+      pg.drawImage(jpeg, { x: p.x * PT, y: (H - p.y - p.h) * PT, width: p.l * PT, height: p.h * PT });
+      pg.pushOperators(popGraphicsState());
     }
   }
 }
@@ -216,20 +226,23 @@ function metadonnees(doc: PDFDocument, titre: string) {
   doc.setProducer("Clic-Clac Voyage");
   doc.setCreator("Clic-Clac Voyage");
   doc.setLanguage("fr-FR");
-  // Pas de date variable : deux exports identiques donnent le même fichier (hors identifiant).
   doc.catalog.set(PDFName.of("Lang"), PDFString.of("fr-FR"));
 }
+
+export type FichierExporte = { suffixe: string; titre: string; cle: string; taille: number; feuilles: number; largeurMm: number; hauteurMm: number };
 
 export type ResultatExport = {
   revision: number;
   le: string;
   pages: number;
-  interieur: { cle: string; taille: number };
-  couverture: { cle: string; taille: number; largeurMm: number; hauteurMm: number; dosMm: number };
+  /** Imprimeur dont le profil a servi (null = format générique). */
+  imprimeur: string | null;
+  dosMm: number;
+  fichiers: FichierExporte[];
   avertissements: string[];
 };
 
-/** Assemble l'intérieur et la couverture, les dépose sur le stockage, renvoie le résultat. */
+/** Assemble les fichiers du profil de l'imprimeur, les dépose sur le stockage, renvoie le résultat. */
 export async function assemblerLivre(db: Db, stockage: Stockage, voyageId: string, nomFichier: string): Promise<ResultatExport> {
   const c = await charger(db, voyageId);
   const b = bloquants(c.livre, c.format, c.medias);
@@ -238,30 +251,9 @@ export async function assemblerLivre(db: Db, stockage: Stockage, voyageId: strin
   const manquantes = c.images.filter((i) => !presents.has(i.cle)).length;
   if (manquantes) throw new ErreurMetier(`${manquantes} photo(s) ne sont pas encore préparées pour l’impression.`);
   const f = c.format;
-  const bp = f.fondPerdu;
+  const profil = profilDe(f);
 
-  // Intérieur
-  const interieur = await PDFDocument.load(await compilerTypst(sourceInterieur(c.livre, f)));
-  if (interieur.getPageCount() !== c.livre.pages.length) throw new Error("Typst : nombre de pages inattendu");
-  await poserImages(interieur, stockage, c.images, (n) => (n >= 1 ? { index: n - 1, dx: bp, dy: bp } : null));
-  for (const pg of interieur.getPages()) {
-    pg.setBleedBox(0, 0, (f.largeur + 2 * bp) * PT, (f.hauteur + 2 * bp) * PT);
-    pg.setTrimBox(bp * PT, bp * PT, f.largeur * PT, f.hauteur * PT);
-  }
-  metadonnees(interieur, `${c.livre.couverture.titre} : intérieur`);
-  const octetsInterieur = await interieur.save({ useObjectStreams: false });
-
-  // Couverture : quatrième, dos, première, d'un seul tenant.
-  const gc = geometrieCouvertureComplete(f, c.livre.pages.length);
-  const couverture = await PDFDocument.load(await compilerTypst(sourceCouverture(c.livre, f)));
-  await poserImages(couverture, stockage, c.images, (n) => (n === 0 ? { index: 0, dx: gc.premiere.x, dy: gc.premiere.y } : null));
-  const [pc] = couverture.getPages();
-  pc.setBleedBox(0, 0, gc.largeur * PT, gc.hauteur * PT);
-  pc.setTrimBox(bp * PT, bp * PT, (gc.largeur - 2 * bp) * PT, f.hauteur * PT);
-  metadonnees(couverture, `${c.livre.couverture.titre} : couverture`);
-  const octetsCouverture = await couverture.save({ useObjectStreams: false });
-
-  // Contrôles du résultat : résolution effective de chaque photo posée.
+  // Contrôles : résolution effective de chaque photo posée.
   const avertissements: string[] = [];
   for (const img of c.images) {
     for (const e of img.emplacements) {
@@ -273,26 +265,50 @@ export async function assemblerLivre(db: Db, stockage: Stockage, voyageId: strin
 
   const horodatage = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
   const base = `voyages/${voyageId}/livre/export/${horodatage}-${nomFichier}`;
+  const fichiers: FichierExporte[] = [];
+  for (const fp of fichiersPdf(f, c.livre.pages.length)) {
+    const doc = await PDFDocument.load(await compilerTypst(sourceFeuilles(c.livre, f, fp.feuilles)));
+    if (doc.getPageCount() !== fp.feuilles.length) throw new Error("Typst : nombre de feuilles inattendu");
+    await poserImages(doc, stockage, c.images, fp.feuilles);
+    fp.feuilles.forEach((fe, i) => {
+      const pg = doc.getPage(i);
+      pg.setBleedBox(0, 0, fe.largeur * PT, fe.hauteur * PT);
+      pg.setTrimBox(fe.fondPerdu * PT, fe.fondPerdu * PT, (fe.largeur - 2 * fe.fondPerdu) * PT, (fe.hauteur - 2 * fe.fondPerdu) * PT);
+    });
+    metadonnees(doc, `${c.livre.couverture.titre} : ${fp.titre}`);
+    const octets = await doc.save({ useObjectStreams: false });
+    const cle = `${base}-${fp.suffixe}.pdf`;
+    await stockage.ecrire(cle, octets, "application/pdf");
+    const premiere = fp.feuilles.find((x) => x.vues.some((v) => v.contenu.type === "dos")) ?? fp.feuilles[0];
+    fichiers.push({ suffixe: fp.suffixe, titre: fp.titre, cle, taille: octets.length, feuilles: fp.feuilles.length, largeurMm: premiere.largeur, hauteurMm: premiere.hauteur });
+  }
+
   const resultat: ResultatExport = {
     revision: c.revision,
     le: new Date().toISOString(),
     pages: c.livre.pages.length,
-    interieur: { cle: `${base}-interieur.pdf`, taille: octetsInterieur.length },
-    couverture: { cle: `${base}-couverture.pdf`, taille: octetsCouverture.length, largeurMm: gc.largeur, hauteurMm: gc.hauteur, dosMm: gc.dos },
+    imprimeur: profil.imprimeur,
+    dosMm: epaisseurDos(f, c.livre.pages.length),
+    fichiers,
     avertissements,
   };
-  await stockage.ecrire(resultat.interieur.cle, octetsInterieur, "application/pdf");
-  await stockage.ecrire(resultat.couverture.cle, octetsCouverture, "application/pdf");
 
   // L'export précédent est remplacé.
   const avant = await db.query.livre.findFirst({ where: eq(tableLivre.voyageId, voyageId), columns: { export: true } });
-  const ancien = avant?.export as ResultatExport | null | undefined;
-  if (ancien?.interieur?.cle) await stockage.supprimer([ancien.interieur.cle, ancien.couverture.cle]).catch(() => {});
+  const ancien = avant?.export as Partial<ResultatExport> | null | undefined;
+  const anciennes = ancien?.fichiers?.map((x) => x.cle) ?? [];
+  // Exports d'avant ce format de résultat : intérieur et couverture.
+  const vieux = ancien as { interieur?: { cle: string }; couverture?: { cle: string } } | null | undefined;
+  if (vieux?.interieur?.cle) anciennes.push(vieux.interieur.cle);
+  if (vieux?.couverture?.cle) anciennes.push(vieux.couverture.cle);
+  if (anciennes.length) await stockage.supprimer(anciennes).catch(() => {});
   await db.update(tableLivre).set({ export: resultat }).where(eq(tableLivre.voyageId, voyageId));
   return resultat;
 }
 
 export async function dernierExport(db: Db, voyageId: string): Promise<ResultatExport | null> {
   const l = await db.query.livre.findFirst({ where: eq(tableLivre.voyageId, voyageId), columns: { export: true } });
-  return (l?.export as ResultatExport | null) ?? null;
+  const r = l?.export as ResultatExport | null | undefined;
+  // Les exports d'un format plus ancien sont ignorés : il suffit de refaire le PDF.
+  return r && Array.isArray(r.fichiers) ? r : null;
 }

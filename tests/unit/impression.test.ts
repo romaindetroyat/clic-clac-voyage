@@ -13,7 +13,8 @@ import { enregistrerLivre, episodesDuLivre, mediasDuLivre } from "@/server/domai
 import { proposerDecoupage } from "@/server/domaine/recit";
 import { creerVoyage } from "@/server/domaine/voyages";
 import { assemblerLivre, compilerTypst, dernierExport, planImages, planPreparation } from "@/server/livre/impression";
-import { chaine, geometrieCouvertureComplete, sourceCouverture, sourceInterieur } from "@/server/livre/typst";
+import { fichiersPdf } from "@/server/livre/feuilles";
+import { chaine, sourceFeuilles } from "@/server/livre/typst";
 import { StockageLocal } from "@/server/stockage/local";
 import { baseDeTest, creerUtilisateur } from "./aide-db";
 
@@ -37,7 +38,8 @@ describe("impression : source Typst", () => {
       medias, fin: { titre: "Les voyageurs", corps: "Romain, Léa" },
     });
     livre.couverture.quatrieme = "Deux semaines dans les Cyclades.";
-    const octets = await compilerTypst(sourceInterieur(livre, carre));
+    const [fi, fc] = fichiersPdf(carre, 24);
+    const octets = await compilerTypst(sourceFeuilles(livre, carre, fi.feuilles));
     const texte = Buffer.from(octets).toString("latin1");
     expect(texte).toMatch(/\/FontName\s*\/[A-Z]{6}\+EBGaramond/);
     expect(texte).toMatch(/\/FontName\s*\/[A-Z]{6}\+Inter/);
@@ -47,10 +49,9 @@ describe("impression : source Typst", () => {
     const { width, height } = interieur.getPage(0).getSize();
     expect(width / MM).toBeCloseTo(206, 1);
     expect(height / MM).toBeCloseTo(206, 1);
-    const couverture = await PDFDocument.load(await compilerTypst(sourceCouverture(livre, carre)));
-    const g = geometrieCouvertureComplete(carre, 24);
-    expect(couverture.getPage(0).getWidth() / MM).toBeCloseTo(g.largeur, 1);
-    expect(g.dos).toBe(7.8);
+    const couverture = await PDFDocument.load(await compilerTypst(sourceFeuilles(livre, carre, fc.feuilles)));
+    // 2 × 200 + dos 7,8 + 2 × 3 de fond perdu
+    expect(couverture.getPage(0).getWidth() / MM).toBeCloseTo(413.8, 1);
   });
 });
 
@@ -116,23 +117,70 @@ describe("impression : plan et assemblage", () => {
     const r = await assemblerLivre(db, stockage, voyageId, "naxos");
     expect(r.pages).toBe(24);
     expect(r.avertissements).toEqual([]);
-    const pdf = await PDFDocument.load(await stockage.lire(r.interieur.cle));
+    expect(r.fichiers.map((x) => x.suffixe)).toEqual(["interieur", "couverture"]);
+    const [interieur, couvertureF] = r.fichiers;
+    const pdf = await PDFDocument.load(await stockage.lire(interieur.cle));
     expect(pdf.getPageCount()).toBe(24);
     const p = pdf.getPage(3);
     const trim = p.getTrimBox();
     expect([trim.x / MM, trim.y / MM, trim.width / MM, trim.height / MM].map((x) => Math.round(x * 10) / 10)).toEqual([3, 3, 200, 200]);
     expect(p.getBleedBox().width / MM).toBeCloseTo(206, 1);
     // Les JPEG sont intégrés tels quels (filtre DCTDecode).
-    const brut = Buffer.from(await stockage.lire(r.interieur.cle)).toString("latin1");
+    const brut = Buffer.from(await stockage.lire(interieur.cle)).toString("latin1");
     expect((brut.match(/\/DCTDecode/g) ?? []).length).toBeGreaterThanOrEqual(plan.total - 1);
     expect(pdf.catalog.get(PDFName.of("Lang"))?.toString()).toContain("fr-FR");
-    const couv = await PDFDocument.load(await stockage.lire(r.couverture.cle));
+    const couv = await PDFDocument.load(await stockage.lire(couvertureF.cle));
     expect(couv.getPageCount()).toBe(1);
-    expect(couv.getPage(0).getWidth() / MM).toBeCloseTo(r.couverture.largeurMm, 1);
+    expect(couv.getPage(0).getWidth() / MM).toBeCloseTo(couvertureF.largeurMm, 1);
 
     // Nouvel export : le précédent est supprimé du stockage.
     const r2 = await assemblerLivre(db, stockage, voyageId, "naxos");
-    expect(await stockage.taille(r.interieur.cle)).toBeNull();
-    expect((await dernierExport(db, voyageId))?.interieur.cle).toBe(r2.interieur.cle);
+    expect(await stockage.taille(interieur.cle)).toBeNull();
+    expect((await dernierExport(db, voyageId))?.fichiers[0].cle).toBe(r2.fichiers[0].cle);
   }, 60_000);
+});
+
+describe("impression : profils d'export par imprimeur", () => {
+  const pages = (f: ReturnType<typeof fichiersPdf>[number]) => f.feuilles.map((x) => x.vues.map((v) => (v.contenu.type === "page" ? v.contenu.numero : v.contenu.type)));
+
+  it("générique : intérieur en pages simples et couverture d'une pièce", () => {
+    const [i, c] = fichiersPdf(formatParId("portrait-21x28"), 24);
+    expect(i.feuilles).toHaveLength(24);
+    expect(c.feuilles[0].vues.map((v) => v.contenu.type)).toEqual(["quatrieme", "dos", "premiere"]);
+  });
+
+  it("Saal Digital : intérieur en doubles pages, page 1 seule à droite, rien ne déborde au pli", () => {
+    const f = formatParId("saal:28x28");
+    const [i] = fichiersPdf(f, 26);
+    expect(i.titre).toMatch(/doubles pages/);
+    expect(pages(i)).toEqual([[1], [2, 3], [4, 5], [6, 7], [8, 9], [10, 11], [12, 13], [14, 15], [16, 17], [18, 19], [20, 21], [22, 23], [24, 25], [26]]);
+    const planche = i.feuilles[1];
+    expect(planche.largeur).toBe(2 * 280 + 6);
+    const [g, d] = planche.vues;
+    expect(g.clip.x + g.clip.l).toBe(d.clip.x); // découpe exactement au pli
+    expect(d.dx).toBe(3 + 280);
+  });
+
+  it("Gelato : un seul PDF, couverture étalée, gardes vierges", () => {
+    const [u] = fichiersPdf(formatParId("gelato:8x11"), 30);
+    expect(u.suffixe).toBe("livre");
+    expect(u.feuilles).toHaveLength(33);
+    expect(u.feuilles[0].vues.map((v) => v.contenu.type)).toEqual(["quatrieme", "dos", "premiere"]);
+    expect(u.feuilles[1].vues).toEqual([]);
+    expect(u.feuilles[32].vues).toEqual([]);
+  });
+
+  it("Prodigi : un seul PDF en pages simples, sans fond perdu ni dos", () => {
+    const [u] = fichiersPdf(formatParId("prodigi:a4-portrait"), 24);
+    expect(pages(u)[0]).toEqual(["premiere"]);
+    expect(pages(u).at(-1)).toEqual(["quatrieme"]);
+    expect(u.feuilles).toHaveLength(26);
+    expect(u.feuilles[0]).toMatchObject({ largeur: 210, hauteur: 297, fondPerdu: 0 });
+  });
+
+  it("CEWE : fond perdu de 10 mm sur la couverture, 3 mm à l'intérieur", () => {
+    const [i, c] = fichiersPdf(formatParId("cewe:21x28"), 26);
+    expect(i.feuilles[0].fondPerdu).toBe(3);
+    expect(c.feuilles[0].fondPerdu).toBe(10);
+  });
 });

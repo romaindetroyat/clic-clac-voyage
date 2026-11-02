@@ -26,10 +26,9 @@ export async function POST(req: NextRequest, { params }: RouteContext<"/api/voya
     if (!r) return { export: null };
     return {
       export: r,
-      liens: {
-        interieur: await stockage.urlLecture(r.interieur.cle, 24 * 3600, `${slug}-interieur.pdf`),
-        couverture: await stockage.urlLecture(r.couverture.cle, 24 * 3600, `${slug}-couverture.pdf`),
-      },
+      liens: Object.fromEntries(
+        await Promise.all(r.fichiers.map(async (x) => [x.suffixe, await stockage.urlLecture(x.cle, 24 * 3600, `${slug}-${x.suffixe}.pdf`)])),
+      ),
     };
   });
 }

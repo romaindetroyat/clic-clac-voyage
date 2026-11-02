@@ -9,6 +9,16 @@ import { exigerVoyage } from "@/server/acces";
 import { exigerUtilisateur, getAuth } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { user } from "@/server/db/schema";
+import {
+  changerStatut,
+  choisirImprimeur,
+  definirPayeur,
+  enregistrerMaCommande,
+  EXEMPLAIRES_MAX,
+  marquerCommandee,
+  marquerPaye,
+  type StatutCommande,
+} from "@/server/domaine/commande";
 import { reglerDecalage } from "@/server/domaine/medias";
 import {
   deplacerEpisode,
@@ -259,5 +269,69 @@ export async function actionScinder(slug: string, episodeId: string, mediaId: st
   return surEpisodes(slug, async (id) => {
     await scinder(await getDb(), id, episodeId, mediaId);
     return { message: "Épisode scindé." };
+  });
+}
+
+/* ------------------------- Imprimeur et commande ------------------------- */
+
+export async function actionChoisirImprimeur(slug: string, imprimeurId: string, produitId: string): Promise<EtatAction> {
+  const r = await proteger(async () => {
+    const { voyage, utilisateur } = await exigerVoyage(slug, "admin");
+    await choisirImprimeur(await getDb(), { voyageId: voyage.id, userId: utilisateur.id }, imprimeurId, produitId);
+    return undefined;
+  });
+  if (r?.erreur) return r;
+  redirect(`/voyages/${slug}/livre?imprimeur=1`);
+}
+
+const schemaCommande = z.object({
+  exemplaires: z.coerce.number().int("Nombre d’exemplaires invalide.").min(0).max(EXEMPLAIRES_MAX, `${EXEMPLAIRES_MAX} exemplaires au plus.`),
+  livraison: z.enum(["groupee", "domicile"]),
+  adresse: z.string().max(500).optional(),
+});
+
+export async function actionMaCommande(slug: string, _: EtatAction, form: FormData): Promise<EtatAction> {
+  return proteger(async () => {
+    const { voyage, utilisateur } = await exigerVoyage(slug);
+    const d = schemaCommande.parse(Object.fromEntries(form));
+    await enregistrerMaCommande(await getDb(), { voyageId: voyage.id, userId: utilisateur.id }, d);
+    revalidatePath(`/voyages/${slug}/commande`);
+    return { message: d.exemplaires ? "Votre commande est enregistrée." : "Vous ne commandez pas d’exemplaire." };
+  });
+}
+
+export async function actionStatutCommande(slug: string, userId: string, statut: StatutCommande): Promise<EtatAction> {
+  return proteger(async () => {
+    const { voyage } = await exigerVoyage(slug, "admin");
+    await changerStatut(await getDb(), voyage.id, userId, statut);
+    revalidatePath(`/voyages/${slug}/commande`);
+    return { message: "Statut mis à jour." };
+  });
+}
+
+export async function actionPaye(slug: string, userId: string, paye: boolean): Promise<EtatAction> {
+  return proteger(async () => {
+    const { voyage } = await exigerVoyage(slug, "admin");
+    await marquerPaye(await getDb(), voyage.id, userId, paye);
+    revalidatePath(`/voyages/${slug}/commande`);
+    return { message: paye ? "Remboursement noté." : "Remboursement annulé." };
+  });
+}
+
+export async function actionPayeur(slug: string, _: EtatAction, form: FormData): Promise<EtatAction> {
+  return proteger(async () => {
+    const { voyage } = await exigerVoyage(slug, "admin");
+    await definirPayeur(await getDb(), voyage.id, String(form.get("payeur") ?? ""));
+    revalidatePath(`/voyages/${slug}/commande`);
+    return { message: "C’est noté." };
+  });
+}
+
+export async function actionCommandePassee(slug: string): Promise<EtatAction> {
+  return proteger(async () => {
+    const { voyage, utilisateur } = await exigerVoyage(slug, "admin");
+    await marquerCommandee(await getDb(), { voyageId: voyage.id, userId: utilisateur.id, estAdmin: true });
+    revalidatePath(`/voyages/${slug}/commande`);
+    return { message: "Commande notée comme passée : les montants sont figés." };
   });
 }
