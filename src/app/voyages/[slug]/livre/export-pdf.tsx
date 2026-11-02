@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { ImageAPreparer } from "@/lib/livre/preparation";
 
+type Fichier = { suffixe: string; titre: string; taille: number; feuilles: number; largeurMm: number; hauteurMm: number };
 type Resultat = {
-  export: { revision: number; le: string; pages: number; interieur: { taille: number }; couverture: { taille: number; largeurMm: number; hauteurMm: number; dosMm: number }; avertissements: string[] } | null;
-  liens?: { interieur: string; couverture: string };
+  export: { revision: number; le: string; pages: number; imprimeur: string | null; dosMm: number; fichiers: Fichier[]; avertissements: string[] } | null;
+  liens?: Record<string, string>;
 };
 
 type Etape = { nom: "attente" } | { nom: "plan" } | { nom: "preparation"; fait: number; total: number; deja: number } | { nom: "assemblage" } | { nom: "erreur"; message: string };
@@ -68,7 +69,7 @@ export function ExportPdf({ slug, revision, enregistrer, bloquants, onFermer }: 
           </button>
         </div>
         <p className="text-sm text-encre-douce">
-          Deux fichiers : l’intérieur et la couverture (quatrième, dos et première d’un seul tenant), avec 3 mm de fond perdu,
+          Les fichiers attendus par l’imprimeur choisi (sinon l’intérieur et la couverture d’un seul tenant), avec fonds perdus,
           photos à 300 dpi et polices intégrées. Les photos sont préparées dans ce navigateur avec leurs retouches : gardez la
           page ouverte. Si l’export est interrompu, il reprendra où il s’était arrêté.
         </p>
@@ -115,21 +116,20 @@ export function ExportPdf({ slug, revision, enregistrer, bloquants, onFermer }: 
               ) : null}
             </p>
             <ul className="space-y-2">
-              <li>
-                <a className="lien" href={resultat.liens.interieur}>
-                  Télécharger l’intérieur ({mo(r.interieur.taille)})
-                </a>
-              </li>
-              <li>
-                <a className="lien" href={resultat.liens.couverture}>
-                  Télécharger la couverture ({mo(r.couverture.taille)})
-                </a>
-                <span className="block text-xs text-encre-douce">
-                  {r.couverture.largeurMm.toFixed(1).replace(".", ",")} × {r.couverture.hauteurMm.toFixed(1).replace(".", ",")} mm, dos de{" "}
-                  {r.couverture.dosMm.toString().replace(".", ",")} mm
-                </span>
-              </li>
+              {r.fichiers.map((x) => (
+                <li key={x.suffixe}>
+                  <a className="lien" href={resultat.liens?.[x.suffixe]}>
+                    Télécharger {x.suffixe === "livre" ? "le livre complet" : x.suffixe === "couverture" ? "la couverture" : "l’intérieur"} ({mo(x.taille)})
+                  </a>
+                  <span className="block text-xs text-encre-douce">
+                    {x.titre}, {x.feuilles} page{x.feuilles > 1 ? "s" : ""} PDF de {x.largeurMm.toFixed(1).replace(".", ",")} × {x.hauteurMm.toFixed(1).replace(".", ",")} mm
+                  </span>
+                </li>
+              ))}
             </ul>
+            <p className="text-xs text-encre-douce">
+              {r.imprimeur ? `Préparé selon les règles de ${r.imprimeur}. ` : "Format générique. "}Dos de {r.dosMm.toString().replace(".", ",")} mm.
+            </p>
             {r.avertissements.length ? (
               <ul className="text-sm text-accent">
                 {r.avertissements.slice(0, 5).map((a, i) => (

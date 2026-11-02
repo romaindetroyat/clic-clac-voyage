@@ -27,10 +27,12 @@ export const GOUTTIERE = 4;
 
 /** Marges (mm) : côté reliure plus large, bas plus haut pour la légende et le folio. */
 export function zoneUtile(f: Format, numero: number): Rect {
-  const exterieur = 12;
-  const interieur = 12 + f.pli;
-  const haut = 12;
-  const bas = 20;
+  // Jamais moins que la zone de sécurité de l'imprimeur.
+  const exterieur = Math.max(12, f.securite);
+  const interieur = exterieur + f.pli;
+  const haut = exterieur;
+  // Bas : légende (7 mm) puis folio (4 mm), le folio restant dans la zone de sécurité.
+  const bas = exterieur + 15;
   // Page impaire = page de droite : la reliure est à gauche.
   const droite = numero % 2 === 1;
   const x = droite ? interieur : exterieur;
@@ -70,10 +72,10 @@ function retrait(z: Rect, f: number): Rect {
 }
 
 /** Bande de légende sous la zone utile, et folio. */
-function pied(z: Rect, page: Rect): CadreTexte[] {
+function pied(z: Rect): CadreTexte[] {
   return [
     { role: "legende", rect: { x: z.x, y: z.y + z.h + 3, l: z.l, h: 7 } },
-    { role: "folio", rect: { x: z.x, y: page.h - 9, l: z.l, h: 4 }, centre: true },
+    { role: "folio", rect: { x: z.x, y: z.y + z.h + 11, l: z.l, h: 4 }, centre: true },
   ];
 }
 
@@ -83,7 +85,7 @@ const photos = (id: string, nom: string, n: number, decoupe: (z: Rect, g: number
   famille: "photos",
   n,
   auto: true,
-  construire: (z, g, page) => ({ photos: decoupe(z, g), textes: pied(z, page) }),
+  construire: (z, g) => ({ photos: decoupe(z, g), textes: pied(z) }),
 });
 
 export const GABARITS: Gabarit[] = [
@@ -127,7 +129,7 @@ export const GABARITS: Gabarit[] = [
     famille: "ouverture",
     n: 1,
     auto: true,
-    construire: (z, g, page) => {
+    construire: (z, g) => {
       const [texte, photo] = lignes(z, [2, 3], g * 2);
       return {
         photos: [photo],
@@ -135,7 +137,7 @@ export const GABARITS: Gabarit[] = [
           { role: "surtitre", rect: { ...texte, h: 6 } },
           { role: "titre", rect: { x: texte.x, y: texte.y + 8, l: texte.l, h: 22 } },
           { role: "corps", rect: { x: texte.x, y: texte.y + 33, l: texte.l, h: Math.max(0, texte.h - 33) } },
-          ...pied(z, page).filter((t) => t.role === "folio"),
+          ...pied(z).filter((t) => t.role === "folio"),
         ],
       };
     },
@@ -146,7 +148,7 @@ export const GABARITS: Gabarit[] = [
     famille: "ouverture",
     n: 0,
     auto: false,
-    construire: (z, _g, page) => {
+    construire: (z) => {
       const t = retrait(z, 0.1);
       return {
         photos: [],
@@ -154,7 +156,7 @@ export const GABARITS: Gabarit[] = [
           { role: "surtitre", rect: { x: t.x, y: t.y + t.h * 0.25, l: t.l, h: 6 } },
           { role: "titre", rect: { x: t.x, y: t.y + t.h * 0.25 + 8, l: t.l, h: 22 } },
           { role: "corps", rect: { x: t.x, y: t.y + t.h * 0.25 + 34, l: t.l, h: t.h * 0.75 - 34 } },
-          ...pied(z, page).filter((x) => x.role === "folio"),
+          ...pied(z).filter((x) => x.role === "folio"),
         ],
       };
     },
@@ -165,14 +167,14 @@ export const GABARITS: Gabarit[] = [
     famille: "texte",
     n: 0,
     auto: false,
-    construire: (z, _g, page) => {
+    construire: (z) => {
       const t = retrait(z, 0.12);
       return {
         photos: [],
         textes: [
           { role: "titre", rect: { x: t.x, y: t.y, l: t.l, h: 16 } },
           { role: "corps", rect: { x: t.x, y: t.y + 20, l: t.l, h: t.h - 20 } },
-          ...pied(z, page).filter((x) => x.role === "folio"),
+          ...pied(z).filter((x) => x.role === "folio"),
         ],
       };
     },

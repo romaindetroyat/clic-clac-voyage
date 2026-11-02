@@ -3,13 +3,14 @@
  * ensuite par pdf-lib, telles quelles (JPEG non réencodés) : Typst garde chaque image
  * décodée en mémoire, ce qui ne tiendrait pas dans une fonction de 2 Go pour 200 pages.
  *
- * Pas de paramètre « bleed » dans la version de Typst embarquée (0.14) : la page fait
- * format + 2 × fond perdu, tout est décalé du fond perdu, et les boîtes TrimBox / BleedBox
- * sont posées après coup.
+ * Pas de paramètre « bleed » dans la version de Typst embarquée (0.14) : chaque feuille fait
+ * format + fonds perdus, les pages logiques y sont décalées (voir feuilles.ts), et les boîtes
+ * TrimBox / BleedBox sont posées après coup.
  */
 import { TAILLES } from "@/lib/livre/controles";
-import { epaisseurDos, type Format } from "@/lib/livre/formats";
+import type { Format } from "@/lib/livre/formats";
 import { geometrieCouverture, geometriePage, type CadreTexte, type Rect } from "@/lib/livre/gabarits";
+import type { Feuille, Vue } from "./feuilles";
 import { FONDS, type Livre, type PageLivre } from "@/lib/livre/modele";
 
 /** Chaîne Typst entre guillemets. */
@@ -62,56 +63,54 @@ function texteDe(p: PageLivre, role: CadreTexte["role"], numero: number): string
 
 const ENTETE = `#set text(lang: "fr", hyphenate: false, kerning: true)\n`;
 
-/** Intérieur : une page Typst par page du livre, fond perdu compris. */
-export function sourceInterieur(livre: Livre, f: Format): string {
-  const b = f.fondPerdu;
-  const couleurs = FONDS[livre.options.fond];
-  let src = `${ENTETE}#set page(width: ${mm(f.largeur + 2 * b)}, height: ${mm(f.hauteur + 2 * b)}, margin: 0mm, fill: rgb(${chaine(couleurs.fond)}))\n`;
-  livre.pages.forEach((p, i) => {
-    const numero = i + 1;
-    if (i) src += "#pagebreak()\n";
-    // Un élément invisible garantit que chaque page existe, même vide.
-    src += "#place(top + left, box(width: 0mm, height: 0mm))\n";
-    for (const t of geometriePage(f, p.gabarit, numero).textes) {
-      const texte = texteDe(p, t.role, numero);
-      if (texte) src += placerTexte(t.rect, t, texte, { x: b, y: b }, couleurs);
-    }
-  });
-  return src;
-}
-
-/** Géométrie de la couverture complète : quatrième, dos, première, fonds perdus. */
-export function geometrieCouvertureComplete(f: Format, pages: number) {
-  const b = f.fondPerdu;
-  const dos = epaisseurDos(f, pages);
-  return {
-    largeur: 2 * f.largeur + dos + 2 * b,
-    hauteur: f.hauteur + 2 * b,
-    dos,
-    quatrieme: { x: b, y: b },
-    tranche: { x: b + f.largeur, y: b, l: dos, h: f.hauteur },
-    premiere: { x: b + f.largeur + dos, y: b },
-  };
-}
-
-export function sourceCouverture(livre: Livre, f: Format): string {
-  const g = geometrieCouvertureComplete(f, livre.pages.length);
-  const couleurs = FONDS[livre.options.fond];
-  const geo = geometrieCouverture(f);
-  let src = `${ENTETE}#set page(width: ${mm(g.largeur)}, height: ${mm(g.hauteur)}, margin: 0mm, fill: rgb(${chaine(couleurs.fond)}))\n`;
-  src += "#place(top + left, box(width: 0mm, height: 0mm))\n";
+/** Textes d'une page logique posée sur une feuille. */
+function textesVue(livre: Livre, f: Format, v: Vue, couleurs: (typeof FONDS)[keyof typeof FONDS]): string {
+  const o = { x: v.dx, y: v.dy };
   const c = livre.couverture;
-  for (const t of geo.premiere.textes) {
-    const texte = t.role === "titre" ? c.titre : c.sousTitre;
-    if (texte) src += placerTexte(t.rect, t, texte, g.premiere, couleurs);
+  let src = "";
+  switch (v.contenu.type) {
+    case "page": {
+      const numero = v.contenu.numero;
+      const p = livre.pages[numero - 1];
+      if (!p) return "";
+      for (const t of geometriePage(f, p.gabarit, numero).textes) {
+        const texte = texteDe(p, t.role, numero);
+        if (texte) src += placerTexte(t.rect, t, texte, o, couleurs);
+      }
+      return src;
+    }
+    case "premiere":
+      for (const t of geometrieCouverture(f).premiere.textes) {
+        const texte = t.role === "titre" ? c.titre : c.sousTitre;
+        if (texte) src += placerTexte(t.rect, t, texte, o, couleurs);
+      }
+      return src;
+    case "quatrieme":
+      for (const t of geometrieCouverture(f).quatrieme.textes) if (c.quatrieme) src += placerTexte(t.rect, t, c.quatrieme, o, couleurs);
+      return src;
+    case "dos": {
+      // Titre sur le dos, de bas en haut (usage français), s'il est assez épais.
+      const dos = v.contenu.largeur;
+      if (dos < f.dosTitreMin || !c.titre) return "";
+      const taille = Math.min(14, dos * 0.55 * (72 / 25.4));
+      return (
+        `#place(top + left, dx: ${mm(v.dx)}, dy: ${mm(v.dy)}, box(width: ${mm(dos)}, height: ${mm(f.hauteur)}, ` +
+        `align(center + horizon, rotate(-90deg, reflow: true, text(font: "EB Garamond", size: ${taille.toFixed(1)}pt, fill: rgb(${chaine(couleurs.encre)}))[#${chaine(c.titre)}]))))\n`
+      );
+    }
   }
-  for (const t of geo.quatrieme.textes) if (c.quatrieme) src += placerTexte(t.rect, t, c.quatrieme, g.quatrieme, couleurs);
-  // Titre sur le dos, de bas en haut (usage français), s'il est assez épais.
-  if (g.dos >= f.dosTitreMin && c.titre) {
-    const taille = Math.min(14, g.dos * 0.55 * (72 / 25.4));
-    src +=
-      `#place(top + left, dx: ${mm(g.tranche.x)}, dy: ${mm(g.tranche.y)}, box(width: ${mm(g.tranche.l)}, height: ${mm(g.tranche.h)}, ` +
-      `align(center + horizon, rotate(-90deg, reflow: true, text(font: "EB Garamond", size: ${taille.toFixed(1)}pt, fill: rgb(${chaine(couleurs.encre)}))[#${chaine(c.titre)}]))))\n`;
+}
+
+/** Source Typst d'un fichier : une page Typst par feuille, fonds et textes seulement. */
+export function sourceFeuilles(livre: Livre, f: Format, feuilles: Feuille[]): string {
+  const couleurs = FONDS[livre.options.fond];
+  let src = ENTETE;
+  for (const fe of feuilles) {
+    src += `#page(width: ${mm(fe.largeur)}, height: ${mm(fe.hauteur)}, margin: 0mm, fill: rgb(${chaine(couleurs.fond)}))[\n`;
+    // Un élément invisible garantit que la feuille existe, même vide.
+    src += "#place(top + left, box(width: 0mm, height: 0mm))\n";
+    for (const v of fe.vues) src += textesVue(livre, f, v, couleurs);
+    src += "]\n";
   }
   return src;
 }

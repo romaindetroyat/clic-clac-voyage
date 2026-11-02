@@ -365,7 +365,8 @@ export function EditeurLivre({
           <label className="block space-y-1.5">
             <span className="etiquette">Format</span>
             <select className="champ" value={reglages.formatId} onChange={(e) => setReglages({ ...reglages, formatId: e.target.value })}>
-              {FORMATS.map((f) => (
+              {/* Format de l'imprimeur choisi (onglet Imprimeurs), en tête. */}
+              {[...(FORMATS.some((x) => x.id === reglages.formatId) ? [] : [formatParId(reglages.formatId)]), ...FORMATS].map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.nom}
                 </option>

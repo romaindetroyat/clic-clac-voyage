@@ -4,6 +4,23 @@
 **Dernière action** : phase 1 en production (connexion Gmail vérifiée par Romain) ; phase 2, tranche 1 : envoi reprenable vers R2, analyse dans le navigateur, galerie, recalage d'horloge, dédoublonnage
 **Prochaine étape** : tester l'import réel sur téléphone, puis tranche 2 (partage Android et Raccourci iOS, WhatsApp, Google Photos, Drive, Dropbox, OneDrive, vidéo allégée, mode économie de données)
 
+## Phase 6 : où on en est
+
+| Exigence | État |
+|---|---|
+| IMPR-01 imprimeurs retenus | ✅ 8 fiches (Saal Digital, Blurb, Fotofabriek, Pixartprinting, CEWE, Lulu, Gelato, Prodigi) dans `src/lib/imprimeurs/catalogue.ts`, relevées le 2 novembre 2026 (second relevé le même jour) |
+| IMPR-02 règles appliquées par l'éditeur | ✅ choisir un produit donne au livre son format, ses pages (min, max, pas), ses marges de sécurité et de reliure, son fond perdu et son dos (table Fotofabriek) ; les contrôles du livre suivent |
+| IMPR-03 fiches | ✅ formats, papier, prix (base + page supplémentaire), port, délais, note Trustpilot datée, lien ; chaque valeur porte sa source et son statut (vérifié, secondaire, non vérifié) ; ⏳ beaucoup de prix et de ports sont derrière des configurateurs : non vérifiés, affichés comme tels |
+| IMPR-04 mise à jour par l'IA | ⏳ tranche 2 (clé d'API Anthropic à décider) |
+| IMPR-05, 06 comparateur, classement | ✅ coût réel pour le livre et le nombre d'exemplaires du groupe, exclusions motivées (CEWE : pas de PDF en France ; forme ; pages max), tri prix / note / délai / score combiné, incertitudes listées |
+| IMPR-07 le choix réadapte le livre | ✅ version gardée avant, gabarits recalculés, alertes à jour |
+| LIV-11 export par imprimeur | ✅ profils : intérieur et couverture séparés ; doubles pages (Saal) ; PDF unique couverture étalée + gardes (Gelato, Pixartprinting) ; PDF unique en pages simples sans fond perdu (Prodigi) ; fond perdu de couverture propre (CEWE 10 mm) ; ⏳ conversion CMJN et PDF/X (Ghostscript indisponible sur Vercel) : signalée dans le comparateur |
+| IMPR-08 exemplaires et livraison | ✅ chacun choisit ses exemplaires, envoi groupé ou à domicile (adresse visible par lui et les organisateurs seulement) |
+| IMPR-09 coût par personne, qui doit combien à qui | ✅ calcul au centime, port groupé au prorata, envoi à domicile payé par chacun, le payeur (un organisateur) ne se doit rien |
+| IMPR-10 états | ✅ demandée, commandée, expédiée ; remboursement noté à part ; montants figés quand la commande est passée |
+| IMPR-11 V1 | ✅ export conforme + lien direct vers l'imprimeur |
+| V2-01 commande par API | ⏳ plus tard (Lulu, Prodigi, Gelato) |
+
 ## Phase 5 : où on en est
 
 | Exigence | État |

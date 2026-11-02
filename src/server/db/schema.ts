@@ -355,6 +355,8 @@ export const livre = pgTable("livre", {
   revision: integer("revision").notNull().default(1),
   // Dernier export PDF : clés de stockage, révision exportée, contrôles.
   export: jsonb("export").$type<Record<string, unknown>>(),
+  // Qui avance l'argent à l'imprimeur (les autres le remboursent).
+  payeurId: text("payeur_id").references(() => user.id, { onDelete: "set null" }),
   modifiePar: text("modifie_par").references(() => user.id, { onDelete: "set null" }),
   ...horodatage,
 });
@@ -373,4 +375,36 @@ export const versionLivre = pgTable(
     ...horodatage,
   },
   (t) => [index("version_livre_voyage_idx").on(t.voyageId, t.createdAt)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Commande groupée du livre                                           */
+/* ------------------------------------------------------------------ */
+
+export const statutCommande = pgEnum("statut_commande", ["demandee", "commandee", "expediee"]);
+export const livraisonCommande = pgEnum("livraison_commande", ["groupee", "domicile"]);
+
+/** Les exemplaires que chacun veut, et comment il les reçoit. */
+export const commandeLivre = pgTable(
+  "commande_livre",
+  {
+    id: text("id").primaryKey(),
+    voyageId: text("voyage_id")
+      .notNull()
+      .references(() => voyage.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    exemplaires: integer("exemplaires").notNull().default(1),
+    livraison: livraisonCommande("livraison").notNull().default("groupee"),
+    // Adresse de livraison à domicile : visible par la personne et les administrateurs seulement.
+    adresse: text("adresse"),
+    statut: statutCommande("statut").notNull().default("demandee"),
+    // Remboursé à la personne qui a payé l'imprimeur (suivi seulement, aucun paiement en ligne).
+    paye: boolean("paye").notNull().default(false),
+    // Montant dû (centimes), figé quand la commande est passée chez l'imprimeur.
+    montantFige: integer("montant_fige"),
+    ...horodatage,
+  },
+  (t) => [uniqueIndex("commande_voyage_user_unique").on(t.voyageId, t.userId)],
 );
