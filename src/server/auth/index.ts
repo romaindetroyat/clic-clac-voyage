@@ -35,8 +35,11 @@ export function getAuth(): Promise<Auth> {
 export type Utilisateur = { id: string; nom: string; email: string };
 
 export async function utilisateurCourant(): Promise<Utilisateur | null> {
+  // Lire la requête d'abord : la page devient dynamique et n'est jamais pré-générée au build
+  // (la configuration n'est disponible qu'à l'exécution).
+  const h = await headers();
   const auth = await getAuth();
-  const s = await auth.api.getSession({ headers: await headers() });
+  const s = await auth.api.getSession({ headers: h });
   if (!s) return null;
   return { id: s.user.id, nom: s.user.name, email: s.user.email };
 }
@@ -48,6 +51,7 @@ export async function exigerUtilisateur(): Promise<Utilisateur> {
   return u;
 }
 
+/** Lecture de configuration à l'exécution seulement (voir utilisateurCourant). */
 export function googleActif(): boolean {
   const e = env();
   return !!(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET);
