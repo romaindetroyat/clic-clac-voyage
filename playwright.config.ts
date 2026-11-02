@@ -25,6 +25,7 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "e2e-uniquement-e2e-uniquement-e2e-uniquement",
       ADMIN_EMAILS: "romain@exemple.fr",
       MAIL_OUTBOX_FILE: `${DOSSIER}/outbox.jsonl`,
+      STOCKAGE_LOCAL: `${DOSSIER}/stockage`,
     },
   },
 });

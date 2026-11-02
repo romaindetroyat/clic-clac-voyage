@@ -35,6 +35,7 @@ jobs:
       BETTER_AUTH_SECRET: ci-uniquement-ci-uniquement-ci-uniquement-ci
       ADMIN_EMAILS: romain@exemple.fr
       MAIL_OUTBOX_FILE: .data/ci-outbox.jsonl
+      STOCKAGE_LOCAL: .data/ci-stockage
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4

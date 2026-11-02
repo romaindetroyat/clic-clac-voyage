@@ -18,6 +18,7 @@ export function getStockage(): Stockage {
       accessKeyId: e.R2_ACCESS_KEY_ID,
       secretAccessKey: e.R2_SECRET_ACCESS_KEY,
       bucket: e.R2_BUCKET,
+      juridiction: e.R2_JURIDICTION,
     });
   } else {
     g.__clicClacStockage = getStockageLocal();

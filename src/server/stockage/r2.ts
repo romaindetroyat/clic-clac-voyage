@@ -6,14 +6,16 @@ export class StockageR2 implements Stockage {
   private client: AwsClient;
   private base: string;
 
-  constructor(o: { accountId: string; accessKeyId: string; secretAccessKey: string; bucket: string }) {
+  constructor(o: { accountId: string; accessKeyId: string; secretAccessKey: string; bucket: string; juridiction?: string }) {
     this.client = new AwsClient({
       accessKeyId: o.accessKeyId,
       secretAccessKey: o.secretAccessKey,
       service: "s3",
       region: "auto",
     });
-    this.base = `https://${o.accountId}.r2.cloudflarestorage.com/${o.bucket}`;
+    // Bucket sous juridiction (ex. « eu ») : adresse dédiée, données garanties dans la zone.
+    const zone = o.juridiction ? `.${o.juridiction}` : "";
+    this.base = `https://${o.accountId}${zone}.r2.cloudflarestorage.com/${o.bucket}`;
   }
 
   private url(cle: string, params: Record<string, string> = {}) {

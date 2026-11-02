@@ -29,6 +29,8 @@ const schema = z.object({
   R2_ACCESS_KEY_ID: z.string().optional(),
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET: z.string().optional(),
+  // Juridiction du bucket (« eu » pour garantir un stockage dans l'Union européenne), vide sinon.
+  R2_JURIDICTION: z.enum(["eu", "fedramp", "us"]).optional().or(z.literal("").transform(() => undefined)),
   // Dossier du stockage local (développement, tests) quand R2 n'est pas configuré.
   STOCKAGE_LOCAL: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),

@@ -9,6 +9,8 @@ import { exigerVoyage } from "@/server/acces";
 import { exigerUtilisateur, getAuth } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { user } from "@/server/db/schema";
+import { reglerDecalage } from "@/server/domaine/medias";
+import { formaterDecalage, lireDecalage } from "@/server/domaine/temps";
 import { courrielInvitation } from "@/server/email/modeles";
 import { envoyerCourriel } from "@/server/email/envoi";
 import { appUrl } from "@/server/env";
@@ -172,4 +174,15 @@ export async function actionDeconnexion() {
   const auth = await getAuth();
   await auth.api.signOut({ headers: await headers() });
   redirect("/connexion");
+}
+
+export async function actionRecalerAppareil(slug: string, appareilId: string, _: EtatAction, form: FormData): Promise<EtatAction> {
+  return proteger(async () => {
+    const { voyage, utilisateur, role } = await exigerVoyage(slug, "contributeur");
+    const secondes = lireDecalage(String(form.get("decalage") ?? ""));
+    if (secondes === null) return { erreur: "Décalage illisible. Exemples : « +1 h 12 », « -3 min », « +00:45 »." };
+    await reglerDecalage(await getDb(), { voyageId: voyage.id, userId: utilisateur.id, estAdmin: role === "admin" }, appareilId, secondes);
+    revalidatePath(`/voyages/${slug}`, "layout");
+    return { message: `Décalage enregistré : ${formaterDecalage(secondes)}.` };
+  });
 }
