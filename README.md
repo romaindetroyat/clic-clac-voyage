@@ -6,6 +6,7 @@ Application web (PWA) pour mettre en commun les photos et vidéos d'un voyage en
 - Projet et décisions : [`.planning/PROJECT.md`](.planning/PROJECT.md)
 - Exigences : [`.planning/REQUIREMENTS.md`](.planning/REQUIREMENTS.md)
 - Feuille de route : [`.planning/ROADMAP.md`](.planning/ROADMAP.md)
+- Déploiement et développement local : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md)
 - Recherche : [`.planning/research/SUMMARY.md`](.planning/research/SUMMARY.md)
 
 Le dépôt est public : aucun secret ni aucune donnée personnelle ne doit y être commité.

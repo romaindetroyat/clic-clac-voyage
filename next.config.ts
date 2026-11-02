@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   cacheComponents: false,
   serverExternalPackages: ["@electric-sql/pglite"],
   poweredByHeader: false,
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

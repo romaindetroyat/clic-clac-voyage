@@ -1,8 +1,18 @@
 # État du projet
 
-**Phase en cours** : 1, Fondations (pas encore planifiée)
-**Dernière action** : initialisation du projet et recherche courte terminées (2 novembre 2026)
-**Prochaine étape** : planifier puis exécuter la phase 1
+**Phase en cours** : 1, Fondations (code terminé, déploiement en attente)
+**Dernière action** : phase 1 codée et testée en local (2 novembre 2026)
+**Prochaine étape** : brancher Vercel, Neon et Resend, vérifier sur téléphone, puis phase 2
+
+## Phase 1 : où on en est
+
+| Critère | État |
+|---|---|
+| Connexion sans mot de passe en moins d'une minute | ✅ testé en E2E (code et lien par e-mail) ; Google prêt, à activer |
+| Plusieurs voyages, cloisonnement, 404 pour un non-membre | ✅ tests unitaires (pglite) et E2E |
+| PWA installable | ✅ manifeste, icônes, service worker ; ⏳ installation à vérifier sur un vrai téléphone après déploiement |
+| Pas d'URL codée en dur, CI anti-secrets | ✅ `APP_URL` partout ; gitleaks en CI |
+| Déploiement Vercel | ⏳ le connecteur Vercel n'a pas le droit de créer le projet (403) : création manuelle, voir `docs/DEPLOIEMENT.md` |
 
 ## Décisions prises
 

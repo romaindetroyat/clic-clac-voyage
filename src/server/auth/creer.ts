@@ -35,7 +35,13 @@ export function creerAuth(o: OptionsAuth) {
     database: drizzleAdapter(o.db, {
       provider: "pg",
       transaction: true,
-      schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification },
+      schema: {
+        user: schema.user,
+        session: schema.session,
+        account: schema.account,
+        verification: schema.verification,
+        rateLimit: schema.rateLimit,
+      },
     }),
     session: {
       expiresIn: 60 * 60 * 24 * 90, // 90 jours : on se connecte rarement sur ce genre d'app
@@ -45,7 +51,18 @@ export function creerAuth(o: OptionsAuth) {
       ? { google: { clientId: o.google.clientId, clientSecret: o.google.clientSecret, prompt: "select_account" } }
       : undefined,
     account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
-    rateLimit: { enabled: o.limiterDebit ?? true, window: 60, max: 30 },
+    rateLimit: {
+      enabled: o.limiterDebit ?? true,
+      // En base : sur Vercel, chaque instance aurait sinon son propre compteur.
+      storage: "database",
+      window: 60,
+      max: 60,
+      customRules: {
+        // Un groupe sur le même Wi-Fi partage une adresse IP : on laisse de la marge.
+        "/email-otp/send-verification-otp": { window: 60, max: 10 },
+        "/sign-in/email-otp": { window: 60, max: 20 },
+      },
+    },
     databaseHooks: {
       user: {
         create: {

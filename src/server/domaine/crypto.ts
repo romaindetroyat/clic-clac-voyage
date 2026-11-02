@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 
 export function genererId(): string {
   return randomUUID();
@@ -31,4 +31,15 @@ export async function verifierMotDePasse(motDePasse: string, stocke: string): Pr
   const attendu = Buffer.from(cleHex, "hex");
   const obtenu = await scryptAsync(motDePasse, Buffer.from(selHex, "hex"));
   return attendu.length === obtenu.length && timingSafeEqual(attendu, obtenu);
+}
+
+/** Signature HMAC-SHA256 (hex) d'une valeur, avec le secret de l'app. */
+export function signer(valeur: string, secret: string): string {
+  return createHmac("sha256", secret).update(valeur).digest("hex");
+}
+
+export function signatureValide(valeur: string, signature: string, secret: string): boolean {
+  const attendu = Buffer.from(signer(valeur, secret), "hex");
+  const recu = Buffer.from(signature, "hex");
+  return attendu.length === recu.length && timingSafeEqual(attendu, recu);
 }

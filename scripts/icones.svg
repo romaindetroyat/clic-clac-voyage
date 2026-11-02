@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1d1b18"/>
+  <!-- Objectif : un cercle fin, un soleil couchant décentré, un horizon. -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#f6f3ee" stroke-width="14"/>
+  <circle cx="300" cy="226" r="54" fill="#d98b67"/>
+  <line x1="130" y1="300" x2="382" y2="300" stroke="#f6f3ee" stroke-width="10" stroke-linecap="round"/>
+</svg>

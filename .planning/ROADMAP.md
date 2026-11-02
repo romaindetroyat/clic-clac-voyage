@@ -2,7 +2,7 @@
 
 7 phases larges. Chacune se termine par quelque chose **utilisable sur le vrai voyage** et par une vérification de fin de phase contre ses critères. Choix techniques : [`research/SUMMARY.md`](research/SUMMARY.md).
 
-- [ ] **Phase 1 : Fondations**
+- [~] **Phase 1 : Fondations** (code fait, déploiement en attente)
 - [ ] **Phase 2 : Import et stockage**
 - [ ] **Phase 3 : Tri et récit**
 - [ ] **Phase 4 : Site du voyage**
@@ -17,6 +17,8 @@
 **Objectif** : l'administrateur crée le vrai voyage, invite le groupe, et chacun se connecte depuis son téléphone sans mot de passe.
 
 **Exigences** : ACC-01 à ACC-08, RGPD-05.
+
+**Décisions d'exécution** : le lien magique réutilise le code à 6 chiffres (un seul e-mail contient le code et un lien qui le saisit), et la limitation de débit est stockée en base pour tenir sur Vercel.
 
 **Contenu** : dépôt Next.js (TS strict, pnpm, ESLint, Vitest, Playwright), Neon + Drizzle (schéma : utilisateurs, voyages, adhésions avec rôle, invitations, liens secrets), Better Auth (lien magique, OTP à 6 chiffres, Google) avec inscription réservée aux invitations, e-mails Resend en français, couche d'autorisation unique `requireTripRole(tripId, role)`, `APP_URL` pour tous les liens absolus, squelette PWA (manifeste, icônes, service worker), déploiement Vercel sur l'URL par défaut, CI GitHub (lint, types, tests, recherche de secrets), `.env.example` sans valeurs.
 
