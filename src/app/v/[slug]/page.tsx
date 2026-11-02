@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Site } from "@/components/site/site";
 import { getDb } from "@/server/db";
+import { empreinteCle } from "@/server/domaine/medias";
 import { donneesSite } from "@/server/domaine/site";
 import { accesSite } from "@/server/lecteur";
 import { classesPolices } from "../polices";
@@ -40,7 +41,7 @@ export default async function SiteVoyage({ params }: PageProps<"/v/[slug]">) {
     );
   }
 
-  const d = await donneesSite(await getDb(), acces.voyage.id, (id, t) => `/v/${slug}/m/${id}/${t}`);
+  const d = await donneesSite(await getDb(), acces.voyage.id, (id, t, cle) => `/v/${slug}/m/${id}/${t}?v=${empreinteCle(cle)}`);
   const urls = [...d.episodes.flatMap((e) => e.medias), ...d.horsEpisodes].flatMap((m) =>
     [m.urls.s, m.urls.m ?? m.urls.affiche].filter((u): u is string => !!u),
   );

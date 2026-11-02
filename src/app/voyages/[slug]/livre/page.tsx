@@ -3,9 +3,9 @@ import { formatParId } from "@/lib/livre/formats";
 import { lireConfig } from "@/lib/site/config";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
+import { urlsMembre } from "@/server/domaine/medias";
 import { episodesDuLivre, livreDe, mediasDuLivre, versionsDe } from "@/server/domaine/livre";
 import { participantsDe } from "@/server/domaine/voyages";
-import { getStockage } from "@/server/stockage";
 import { EditeurLivre } from "./editeur";
 
 export const metadata = { title: "Livre" };
@@ -17,7 +17,7 @@ export default async function PageLivre({ params, searchParams }: PageProps<"/vo
   if (!estAdmin) return <p className="text-encre-douce">Le livre est mis en page par les administrateurs du voyage.</p>;
   const db = await getDb();
   const [medias, episodes, livre, versions, participants] = await Promise.all([
-    mediasDuLivre(db, getStockage(), voyage.id),
+    mediasDuLivre(db, urlsMembre(slug), voyage.id),
     episodesDuLivre(db, voyage.id),
     livreDe(db, voyage.id),
     versionsDe(db, voyage.id),

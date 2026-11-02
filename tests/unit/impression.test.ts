@@ -9,6 +9,7 @@ import { mettreEnPage } from "@/lib/livre/mise-en-page";
 import type { Db } from "@/server/db/client";
 import { media } from "@/server/db/schema";
 import { genererId } from "@/server/domaine/crypto";
+import { urlsMembre } from "@/server/domaine/medias";
 import { enregistrerLivre, episodesDuLivre, mediasDuLivre } from "@/server/domaine/livre";
 import { proposerDecoupage } from "@/server/domaine/recit";
 import { creerVoyage } from "@/server/domaine/voyages";
@@ -79,7 +80,7 @@ describe("impression : plan et assemblage", () => {
     const { livre } = mettreEnPage({
       nom: "Naxos", periode: null, fuseau: "UTC", format: carre,
       options: { ciblePages: 24, rythme: "equilibre", fond: "blanc", legendes: true, commentaires: false },
-      episodes: await episodesDuLivre(db, voyageId), medias: await mediasDuLivre(db, stockage, voyageId),
+      episodes: await episodesDuLivre(db, voyageId), medias: await mediasDuLivre(db, urlsMembre("naxos"), voyageId),
     });
     await enregistrerLivre(db, ctx, livre, null);
   });

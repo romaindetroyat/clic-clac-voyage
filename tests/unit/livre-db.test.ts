@@ -5,6 +5,8 @@ import type { Livre } from "@/lib/livre/modele";
 import type { Db } from "@/server/db/client";
 import { media } from "@/server/db/schema";
 import { genererId } from "@/server/domaine/crypto";
+import { empreinteCle } from "@/server/domaine/medias";
+import { urlsMembre } from "@/server/domaine/medias";
 import {
   creerVersion,
   dimensionsEffectives,
@@ -18,10 +20,8 @@ import {
 } from "@/server/domaine/livre";
 import { cocher, proposerDecoupage } from "@/server/domaine/recit";
 import { creerVoyage, ErreurMetier } from "@/server/domaine/voyages";
-import type { Stockage } from "@/server/stockage/types";
 import { baseDeTest, creerUtilisateur } from "./aide-db";
 
-const stockage = { urlLecture: async (cle: string) => `https://r2/${cle}` } as unknown as Stockage;
 
 describe("livre : données et versions", () => {
   let db: Db;
@@ -50,7 +50,7 @@ describe("livre : données et versions", () => {
   }
 
   async function livreGenere(): Promise<Livre> {
-    const medias = await mediasDuLivre(db, stockage, voyageId);
+    const medias = await mediasDuLivre(db, urlsMembre("naxos"), voyageId);
     return mettreEnPage({
       nom: "Naxos",
       periode: null,
@@ -75,9 +75,10 @@ describe("livre : données et versions", () => {
     const c = await photo("2026-08-03T11:00:00Z");
     await photo("2026-08-03T12:00:00Z", { type: "video" });
     await cocher(db, voyageId, [c], "dansLivre", false);
-    const m = await mediasDuLivre(db, stockage, voyageId);
+    const m = await mediasDuLivre(db, urlsMembre("naxos"), voyageId);
     expect(m.map((x) => x.id)).toEqual([b, a]);
-    expect(m[1]).toMatchObject({ largeur: 1500, hauteur: 4000, vignette: `https://r2/${a}-s` });
+    expect(m[1]).toMatchObject({ largeur: 1500, hauteur: 4000 });
+    expect(m[1].vignette).toBe(`/api/voyages/naxos/medias/${a}/s?v=${empreinteCle(`${a}-s`)}`);
     expect(dimensionsEffectives(4000, 3000, null)).toEqual([4000, 3000]);
   });
 

@@ -2,9 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
-import { galerie } from "@/server/domaine/medias";
+import { galerie, urlsMembre } from "@/server/domaine/medias";
 import { episodesDe } from "@/server/domaine/recit";
-import { getStockage } from "@/server/stockage";
 import { OutilsEpisode } from "./outils-episode";
 
 export default async function PageEpisode({ params }: PageProps<"/voyages/[slug]/recit/[episodeId]">) {
@@ -15,7 +14,7 @@ export default async function PageEpisode({ params }: PageProps<"/voyages/[slug]
   const aClasser = episodeId === "a-classer";
   const e = aClasser ? null : episodes.find((x) => x.id === episodeId);
   if (!aClasser && !e) notFound();
-  const medias = await galerie(db, getStockage(), voyage.id, { episodeId: aClasser ? null : episodeId });
+  const medias = await galerie(db, urlsMembre(slug), voyage.id, { episodeId: aClasser ? null : episodeId });
 
   return (
     <div className="space-y-6">

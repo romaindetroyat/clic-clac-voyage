@@ -1,10 +1,9 @@
 import { classesPolices } from "@/app/v/polices";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
-import { galerie } from "@/server/domaine/medias";
+import { galerie, urlsMembre } from "@/server/domaine/medias";
 import { episodesDe } from "@/server/domaine/recit";
 import { configSite } from "@/server/domaine/site";
-import { getStockage } from "@/server/stockage";
 import { ReglagesSite } from "./reglages-site";
 
 export const metadata = { title: "Site" };
@@ -26,7 +25,7 @@ export default async function PageSite({ params }: PageProps<"/voyages/[slug]/si
   const [config, { episodes }, medias] = await Promise.all([
     configSite(db, voyage.id),
     episodesDe(db, voyage.id),
-    galerie(db, getStockage(), voyage.id),
+    galerie(db, urlsMembre(slug), voyage.id),
   ]);
   const photos = medias.filter((m) => m.type === "photo" && m.dansSite && m.vignette).map((m) => ({ id: m.id, vignette: m.vignette!, vedette: m.vedette }));
 

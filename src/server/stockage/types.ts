@@ -29,6 +29,8 @@ export interface Stockage {
   /** Taille de l'objet, ou null s'il n'existe pas. */
   taille(cle: string): Promise<number | null>;
   supprimer(cles: string[]): Promise<void>;
+  /** Supprime tout ce qui commence par ce préfixe (ex. « voyages/<id>/ ») ; renvoie le nombre d'objets. */
+  supprimerPrefixe(prefixe: string): Promise<number>;
 }
 
 /** 16 Mio : au-dessus de la taille minimale (5 Mio) et assez gros pour 10 000 morceaux = 160 Gio. */

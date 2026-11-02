@@ -2,9 +2,8 @@ import Link from "next/link";
 import { BoutonAction, FormulaireAction } from "@/components/formulaires";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
-import { galerie } from "@/server/domaine/medias";
+import { galerie, urlsMembre } from "@/server/domaine/medias";
 import { episodesDe } from "@/server/domaine/recit";
-import { getStockage } from "@/server/stockage";
 import {
   actionDeplacerEpisode,
   actionFusionner,
@@ -22,7 +21,7 @@ export default async function Recit({ params }: PageProps<"/voyages/[slug]/recit
   const { slug } = await params;
   const { voyage, estAdmin } = await accesVoyage(slug);
   const db = await getDb();
-  const [{ episodes, nonClasses }, medias] = await Promise.all([episodesDe(db, voyage.id), galerie(db, getStockage(), voyage.id)]);
+  const [{ episodes, nonClasses }, medias] = await Promise.all([episodesDe(db, voyage.id), galerie(db, urlsMembre(slug), voyage.id)]);
   const vignettes = new Map<string, string[]>();
   for (const m of medias) {
     if (!m.episodeId || !m.vignette) continue;

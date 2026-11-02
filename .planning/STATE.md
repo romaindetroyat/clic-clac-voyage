@@ -4,6 +4,18 @@
 **Dernière action** : phase 1 en production (connexion Gmail vérifiée par Romain) ; phase 2, tranche 1 : envoi reprenable vers R2, analyse dans le navigateur, galerie, recalage d'horloge, dédoublonnage
 **Prochaine étape** : tester l'import réel sur téléphone, puis tranche 2 (partage Android et Raccourci iOS, WhatsApp, Google Photos, Drive, Dropbox, OneDrive, vidéo allégée, mode économie de données)
 
+## Phase 7 : où on en est
+
+| Exigence | État |
+|---|---|
+| RGPD-01 suppression d'un compte et de ses photos | ✅ photos et vidéos de la personne (fichiers R2 compris), commentaires, réactions, invitations, codes de connexion, commandes, voyages où elle est seule ; refusé si elle est le seul administrateur d'un voyage partagé |
+| RGPD-02 suppression d'un voyage | ✅ base (cascades) + tout le préfixe `voyages/<id>/` du stockage (originaux, versions, images du livre, exports) |
+| RGPD-03 droit à l'image, aucun traçage | ✅ page `/confidentialite` (données, hébergeurs, droit à l'image, aucun traçage), rappel à l'import |
+| RGPD-04 coût ≤ 5 € par mois | ✅ estimation en direct dans Réglages (espace mesuré en base, tarifs datés) ; ⏳ mesure réelle sur un mois avec le vrai voyage (`docs/RECETTE.md` §7) |
+| Volume 10 000 fichiers | ✅ test de charge `pnpm test:charge` : découpage 1 s, galerie 0,6 s, site 1 s, livre 0,3 s, mise en page de 200 pages 0,7 s (base en mémoire) ; les pages ne signent plus d'URL d'avance (20 000 signatures = 2,2 s et plusieurs Mo) : route protégée qui redirige, mise en cache |
+| E2E du parcours principal | ✅ `parcours-complet.spec.ts` : invitation, import par deux personnes, épisodes, site par lien secret, livre et PDF, comparateur et choix de l'imprimeur, commande, suppression du compte puis du voyage |
+| Les 7 critères sur le vrai voyage | ⏳ à faire avec le vrai voyage : `docs/RECETTE.md` |
+
 ## Phase 6 : où on en est
 
 | Exigence | État |
