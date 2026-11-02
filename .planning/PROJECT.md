@@ -59,9 +59,9 @@ Accès sur invitation par e-mail, une invitation = un voyage. Connexion sans mot
 | Tests | Unitaires sur l'essentiel (règles imprimeurs, dos, mise en page, prix et parts, droits, horloge, dédoublonnage) + quelques E2E Playwright |
 | Commits | Atomiques, **en français** |
 
-## Décisions techniques ouvertes (tranchées par la recherche, voir `research/SUMMARY.md`)
+## Décisions techniques (tranchées par la recherche)
 
-Base de données (Neon ou Supabase), bibliothèque d'authentification, chaîne de traitement d'image (HEIC, RAW), conversion vidéo, moteur PDF et plan B pour les gros livres, liste finale des imprimeurs.
+Vercel Hobby, Neon + Drizzle, Better Auth + Resend, Cloudflare R2 + Uppy, versions web générées dans le navigateur, retouches par un moteur WebGL2 unique (`render-core`), PDF par Typst, tâches longues sur GitHub Actions. Détail et justification : [`research/SUMMARY.md`](research/SUMMARY.md).
 
 ## Critères de réussite
 
