@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  doublePrecision,
+  jsonb,
   boolean,
   integer,
   date,
@@ -103,6 +105,8 @@ export const voyage = pgTable("voyage", {
   nom: text("nom").notNull(),
   dateDebut: date("date_debut"),
   dateFin: date("date_fin"),
+  // Fuseau par défaut des photos sans fuseau dans leur EXIF (IANA, ex. « Europe/Athens »).
+  fuseau: text("fuseau").notNull().default("Europe/Paris"),
   creePar: text("cree_par").references(() => user.id, { onDelete: "set null" }),
   ...horodatage,
 });
@@ -167,3 +171,95 @@ export const lienSecret = pgTable(
 
 export type Role = (typeof roleVoyage.enumValues)[number];
 export type Voyage = typeof voyage.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* Médias (photos et vidéos) et appareils                              */
+/* ------------------------------------------------------------------ */
+
+export const typeMedia = pgEnum("type_media", ["photo", "video"]);
+export const statutMedia = pgEnum("statut_media", ["envoi", "pret", "erreur"]);
+export const sourceMedia = pgEnum("source_media", [
+  "fichier",
+  "partage",
+  "whatsapp",
+  "google-photos",
+  "google-drive",
+  "dropbox",
+  "onedrive",
+  "raccourci-ios",
+]);
+
+/**
+ * Un appareil photo ou téléphone, par voyage : sert au recalage d'horloge.
+ * La clé vient de l'EXIF (marque|modèle|numéro de série) ou, à défaut, de la personne qui importe.
+ */
+export const appareil = pgTable(
+  "appareil",
+  {
+    id: text("id").primaryKey(),
+    voyageId: text("voyage_id")
+      .notNull()
+      .references(() => voyage.id, { onDelete: "cascade" }),
+    cle: text("cle").notNull(),
+    libelle: text("libelle").notNull(),
+    proprietaireId: text("proprietaire_id").references(() => user.id, { onDelete: "set null" }),
+    // Décalage à AJOUTER à l'heure de l'appareil pour obtenir l'heure réelle.
+    decalageSecondes: integer("decalage_secondes").notNull().default(0),
+    ...horodatage,
+  },
+  (t) => [uniqueIndex("appareil_voyage_cle_unique").on(t.voyageId, t.cle)],
+);
+
+export type VersionsWeb = Partial<Record<"s" | "m" | "l" | "affiche" | "video", string>>;
+
+export const media = pgTable(
+  "media",
+  {
+    id: text("id").primaryKey(),
+    voyageId: text("voyage_id")
+      .notNull()
+      .references(() => voyage.id, { onDelete: "cascade" }),
+    auteurId: text("auteur_id").references(() => user.id, { onDelete: "set null" }),
+    appareilId: text("appareil_id").references(() => appareil.id, { onDelete: "set null" }),
+    type: typeMedia("type").notNull(),
+    statut: statutMedia("statut").notNull().default("envoi"),
+    source: sourceMedia("source").notNull().default("fichier"),
+
+    nomFichier: text("nom_fichier").notNull(),
+    mime: text("mime").notNull(),
+    taille: bigint("taille", { mode: "number" }).notNull(),
+    sha256: text("sha256").notNull(),
+    // Empreinte perceptuelle 64 bits (hex) : retrouve une même photo recompressée (WhatsApp…).
+    dhash: text("dhash"),
+    largeur: integer("largeur"),
+    hauteur: integer("hauteur"),
+    dureeSecondes: doublePrecision("duree_secondes"),
+
+    // Heure de prise de vue telle que l'appareil l'a notée (sans fuseau), et le fuseau s'il est connu.
+    priseLocale: text("prise_locale"),
+    decalageExifMinutes: integer("decalage_exif_minutes"),
+    // Instant UTC avant recalage : priseLocale interprétée dans son fuseau (ou celui du voyage).
+    priseUtc: timestamp("prise_utc", { withTimezone: true }),
+
+    // Position précise : privée, jamais exposée publiquement.
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+
+    cleOriginal: text("cle_original").notNull(),
+    // Envoi multipart en cours (reprise après coupure).
+    envoiId: text("envoi_id"),
+    versions: jsonb("versions").$type<VersionsWeb>().notNull().default({}),
+
+    // Copie compressée (WhatsApp, mode économie de données) en attente de son original.
+    copieCompressee: boolean("copie_compressee").notNull().default(false),
+    // Masqué car doublon d'un autre média de meilleure qualité.
+    doublonDe: text("doublon_de"),
+    ...horodatage,
+  },
+  (t) => [
+    index("media_voyage_prise_idx").on(t.voyageId, t.priseUtc),
+    uniqueIndex("media_voyage_sha_unique").on(t.voyageId, t.sha256),
+  ],
+);
+
+export type Media = typeof media.$inferSelect;
