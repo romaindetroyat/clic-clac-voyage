@@ -288,6 +288,7 @@ export type MediaGalerie = {
   /** Vidéo allégée lisible dans le navigateur. */
   video: string | null;
   episodeId: string | null;
+  retouchee: boolean;
   legende: string | null;
   dansSite: boolean;
   dansLivre: boolean;
@@ -333,10 +334,12 @@ export async function galerie(
       auteur: l.auteurId ? (nomAuteur.get(l.auteurId) ?? null) : null,
       appareil: l.appareilId ? (parApp.get(l.appareilId)?.libelle ?? null) : null,
       copieCompressee: l.copieCompressee,
-      vignette: await lire(l.versions.s),
-      moyenne: await lire(l.versions.m ?? l.versions.l ?? l.versions.affiche),
+      // Les versions retouchées, quand elles existent, remplacent les versions d'origine partout.
+      vignette: await lire(l.versions.rs ?? l.versions.s),
+      moyenne: await lire(l.versions.rm ?? l.versions.m ?? l.versions.l ?? l.versions.affiche),
       video: await lire(l.versions.video),
       episodeId: l.episodeId,
+      retouchee: !!l.retouche,
       legende: l.legende,
       dansSite: l.dansSite,
       dansLivre: l.dansLivre,

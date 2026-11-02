@@ -180,6 +180,12 @@ export function Visionneuse({
                 <p className="font-titre text-lg leading-snug">{detail.legende}</p>
               ) : null}
 
+              {m.type === "photo" && peutLegender ? (
+                <a href={`/voyages/${slug}/photos/${m.id}/retouche`} className="inline-flex min-h-11 items-center rounded-md border border-white/20 px-3">
+                  {m.retouchee ? "Modifier la retouche" : "Retoucher"}
+                </a>
+              ) : null}
+
               <div className="flex flex-wrap gap-4">
                 {(["dansSite", "dansLivre"] as const).map((champ) => (
                   <label key={champ} className="flex min-h-11 items-center gap-2">
