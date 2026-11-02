@@ -33,10 +33,23 @@ describe("empreintes perceptuelles", () => {
     expect(memePhoto(original, { ...copieWhatsapp, largeur: 1200, hauteur: 1600 })).toBe(true);
   });
 
+  it("ne confond pas les photos d'une rafale (deux originaux à quelques secondes d'écart)", () => {
+    const suivante = { ...original, id: "rafale-2", instant: new Date("2026-08-03T11:00:02Z") };
+    expect(memePhoto(original, suivante)).toBe(false);
+    // Deux images d'une rafale dans la même seconde : même format, même personne, même taille.
+    const a = { ...original, mime: "image/heic", auteurId: "romain" };
+    expect(memePhoto(a, { ...a, id: "rafale-bis" })).toBe(false);
+    // Le même instant venant d'ailleurs (HEIC et son export JPEG envoyé par Paul) : même photo.
+    expect(memePhoto(a, { ...a, id: "jpeg", mime: "image/jpeg", auteurId: "paul", largeur: 2016, hauteur: 1512 })).toBe(true);
+    // Une copie WhatsApp datée par l'heure du message reste reconnue.
+    expect(memePhoto(original, { ...copieWhatsapp, instant: new Date("2026-08-03T12:01:00Z") })).toBe(true);
+  });
+
   it("distingue deux photos différentes", () => {
     expect(memePhoto(original, { ...copieWhatsapp, dhash: "0f1e2d3c4b5a6978" })).toBe(false);
     expect(memePhoto(original, { ...copieWhatsapp, largeur: 1600, hauteur: 900 })).toBe(false); // 16/9 ≠ 4/3
     expect(memePhoto(original, { ...copieWhatsapp, instant: new Date("2026-08-10T11:00:00Z") })).toBe(false);
+    expect(memePhoto(original, { ...original, id: "x", instant: new Date("2026-08-03T11:00:05Z"), copieCompressee: false })).toBe(false);
     expect(memePhoto(original, { ...copieWhatsapp, dhash: null })).toBe(false);
   });
 });

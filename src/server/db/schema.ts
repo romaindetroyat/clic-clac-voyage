@@ -274,6 +274,13 @@ export const media = pgTable(
     // Masqué car doublon d'un autre média de meilleure qualité.
     doublonDe: text("doublon_de"),
 
+    // Qualité estimée dans le navigateur (0 à 1) et rafales
+    nettete: doublePrecision("nettete"),
+    exposition: doublePrecision("exposition"),
+    rafaleId: text("rafale_id"),
+    // Photo retenue dans sa rafale (proposée automatiquement, modifiable d'un clic).
+    choixRafale: boolean("choix_rafale").notNull().default(false),
+
     // Récit et sélection
     episodeId: text("episode_id").references(() => episode.id, { onDelete: "set null" }),
     legende: text("legende"),

@@ -373,6 +373,8 @@ export class FileEnvoi {
           decalageExifMinutes: a.priseLocale ? a.decalageExifMinutes : null,
           latitude: a.latitude,
           longitude: a.longitude,
+          nettete: a.nettete ?? null,
+          exposition: a.exposition ?? null,
           appareil: a.appareil,
           source: e.source,
           copieCompressee: e.copieCompressee,

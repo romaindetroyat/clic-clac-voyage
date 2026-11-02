@@ -52,3 +52,12 @@ with zipfile.ZipFile(f"{OUT}/Discussion WhatsApp avec Naxos.zip", "w") as z:
     z.write(f"{OUT}/IMG-20260803-WA0001.jpg", "IMG-20260803-WA0001.jpg")
     z.writestr("IMG-20260804-WA0002.jpg", tampon.getvalue())
 print("zip ok")
+
+# Une rafale de 3 photos de la même scène, à 1 s d'écart : la nette, une floue, une surexposée.
+from PIL import ImageFilter, ImageEnhance
+base = scene(5)
+ex = lambda s: exif(f"2026:08:05 18:30:0{s}", "+03:00", "Apple", "iPhone 15", "A1")
+base.filter(ImageFilter.GaussianBlur(6)).save(f"{OUT}/RAFALE_1.jpg", quality=90, exif=ex(0))
+base.save(f"{OUT}/RAFALE_2.jpg", quality=90, exif=ex(1))
+ImageEnhance.Brightness(base).enhance(2.2).save(f"{OUT}/RAFALE_3.jpg", quality=90, exif=ex(2))
+print("rafale ok")

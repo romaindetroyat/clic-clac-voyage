@@ -26,6 +26,8 @@ export default defineConfig({
       ADMIN_EMAILS: "romain@exemple.fr",
       MAIL_OUTBOX_FILE: `${DOSSIER}/outbox.jsonl`,
       STOCKAGE_LOCAL: `${DOSSIER}/stockage`,
+      // Tous les parcours se connectent depuis la même adresse : on relève la limite anti-abus.
+      CODES_PAR_MINUTE: "200",
     },
   },
 });

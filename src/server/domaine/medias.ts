@@ -31,6 +31,8 @@ export const schemaDeclaration = z.object({
   dureeSecondes: z.number().nonnegative().max(86_400).nullish(),
   priseLocale: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/).nullish(),
   decalageExifMinutes: z.number().int().min(-14 * 60).max(14 * 60).nullish(),
+  nettete: z.number().min(0).max(1).nullish(),
+  exposition: z.number().min(0).max(1).nullish(),
   latitude: z.number().min(-90).max(90).nullish(),
   longitude: z.number().min(-180).max(180).nullish(),
   appareil: z
@@ -129,6 +131,8 @@ export async function preparerEnvoi(
       priseUtc: priseVersUtc(d.priseLocale, d.decalageExifMinutes, ctx.fuseau),
       latitude: d.latitude ?? null,
       longitude: d.longitude ?? null,
+      nettete: d.nettete ?? null,
+      exposition: d.exposition ?? null,
       cleOriginal: cles.original(ctx.voyageId, mediaId),
       copieCompressee: d.copieCompressee,
     });
@@ -224,7 +228,7 @@ async function dedoublonner(db: Db, nouveau: Media): Promise<{ masque?: string; 
   if (nouveau.type !== "photo" || !nouveau.dhash) return {};
   const candidats = await db.query.media.findMany({
     where: and(eq(media.voyageId, nouveau.voyageId), eq(media.type, "photo"), eq(media.statut, "pret"), isNull(media.doublonDe)),
-    columns: { id: true, dhash: true, largeur: true, hauteur: true, taille: true, priseUtc: true, copieCompressee: true },
+    columns: { id: true, dhash: true, largeur: true, hauteur: true, taille: true, priseUtc: true, copieCompressee: true, mime: true, auteurId: true },
   });
   const empreinte = (e: (typeof candidats)[number]): Empreinte => ({
     id: e.id,
@@ -234,6 +238,8 @@ async function dedoublonner(db: Db, nouveau: Media): Promise<{ masque?: string; 
     taille: e.taille,
     instant: e.priseUtc,
     copieCompressee: e.copieCompressee,
+    mime: e.mime,
+    auteurId: e.auteurId,
   });
   const decision = deciderDoublon(
     empreinte({ ...nouveau, priseUtc: nouveau.priseUtc }),

@@ -139,6 +139,9 @@ export default async function Recit({ params }: PageProps<"/voyages/[slug]/recit
           ))}
         </ol>
       )}
+      <Link href={`${base}/rafales`} className="lien block text-sm">
+        Rafales : choisir la meilleure photo de chaque série
+      </Link>
       {episodes.length > 0 && nonClasses > 0 ? (
         <Link href={`${base}/a-classer`} className="lien text-sm">
           {nonClasses} photo{nonClasses > 1 ? "s" : ""} à classer

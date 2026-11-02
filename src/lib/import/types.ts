@@ -7,6 +7,9 @@ export type Analyse = {
   largeur: number | null;
   hauteur: number | null;
   dureeSecondes: number | null;
+  /** Qualité estimée localement (0 à 1), pour choisir la meilleure photo d'une rafale. */
+  nettete?: number | null;
+  exposition?: number | null;
   priseLocale: string | null;
   decalageExifMinutes: number | null;
   latitude: number | null;

@@ -12,7 +12,8 @@
 | REC-04 cases site et livre | ✅ une par une ou par lot |
 | REC-06 légende de l'auteur, commentaires signés, réactions | ✅ |
 | REC-09 galeries fluides | ✅ virtualisées ; visionneuse avec balayage et clavier |
-| REC-05, 10 rafales et meilleure photo | ⏳ tranche 2 |
+| REC-05 rafales et meilleure photo | ✅ netteté (variance du laplacien) et exposition mesurées dans le navigateur ; rafale = même appareil, ≤ 10 s, même scène ; choix d'un clic conservé |
+| REC-10 IA de vision pour départager (yeux ouverts, cadrage) | ⏳ nécessite une clé d'API et un budget plafonné : à décider |
 | REC-07, 08 retouches non destructives au rendu identique | ⏳ tranche 3 |
 
 ## Phase 2 : où on en est

@@ -33,6 +33,8 @@ const schema = z.object({
   R2_JURIDICTION: z.enum(["eu", "fedramp", "us"]).optional().or(z.literal("").transform(() => undefined)),
   // Dossier du stockage local (développement, tests) quand R2 n'est pas configuré.
   STOCKAGE_LOCAL: z.string().optional(),
+  // Limite anti-abus des envois de codes (par minute et par adresse IP). Relevée seulement pour les tests E2E.
+  CODES_PAR_MINUTE: z.coerce.number().int().positive().max(1000).optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
