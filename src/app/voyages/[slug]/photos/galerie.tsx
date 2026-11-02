@@ -2,10 +2,10 @@
 
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Visionneuse } from "@/components/visionneuse";
 import type { MediaGalerie } from "@/server/domaine/medias";
 
 const fmtJour = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const fmtHeure = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
 type Ligne = { type: "jour"; libelle: string } | { type: "medias"; medias: MediaGalerie[] };
 
@@ -28,10 +28,25 @@ function useMesures(ref: React.RefObject<HTMLDivElement | null>) {
 }
 
 /** Galerie de milliers de photos : seules les lignes visibles sont dans la page. */
-export function Galerie({ medias }: { medias: MediaGalerie[] }) {
+export function Galerie({
+  medias,
+  slug,
+  utilisateurId,
+  estAdmin,
+  selection,
+}: {
+  medias: MediaGalerie[];
+  slug: string;
+  utilisateurId: string;
+  estAdmin: boolean;
+  /** Mode sélection : cocher plusieurs photos (pour les déplacer, les retirer du livre…). */
+  selection?: { choisis: Set<string>; basculer: (id: string) => void };
+}) {
   const conteneur = useRef<HTMLDivElement>(null);
   const { colonnes, largeur, haut } = useMesures(conteneur);
-  const [ouvert, setOuvert] = useState<MediaGalerie | null>(null);
+  const [liste, setListe] = useState(medias);
+  const [ouvert, setOuvert] = useState<number | null>(null);
+  const indexDe = useMemo(() => new Map(liste.map((m, i) => [m.id, i])), [liste]);
 
   const lignes = useMemo(() => {
     const res: Ligne[] = [];
@@ -41,7 +56,7 @@ export function Galerie({ medias }: { medias: MediaGalerie[] }) {
       for (let i = 0; i < paquet.length; i += colonnes) res.push({ type: "medias", medias: paquet.slice(i, i + colonnes) });
       paquet = [];
     };
-    for (const m of medias) {
+    for (const m of liste) {
       const j = m.instant ? fmtJour.format(new Date(m.instant)) : "Sans date";
       if (j !== jour) {
         vider();
@@ -52,7 +67,7 @@ export function Galerie({ medias }: { medias: MediaGalerie[] }) {
     }
     vider();
     return res;
-  }, [medias, colonnes]);
+  }, [liste, colonnes]);
 
   const v = useWindowVirtualizer({
     count: lignes.length,
@@ -82,8 +97,11 @@ export function Galerie({ medias }: { medias: MediaGalerie[] }) {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setOuvert(m)}
-                      className="relative aspect-square overflow-hidden rounded-sm bg-papier-2"
+                      onClick={() => (selection ? selection.basculer(m.id) : setOuvert(indexDe.get(m.id)!))}
+                      aria-pressed={selection ? selection.choisis.has(m.id) : undefined}
+                      className={`relative aspect-square overflow-hidden rounded-sm bg-papier-2 ${
+                        selection?.choisis.has(m.id) ? "ring-4 ring-accent ring-inset" : ""
+                      } ${!m.dansSite && !m.dansLivre ? "opacity-40" : ""}`}
                       aria-label={`${m.type === "video" ? "Vidéo" : "Photo"} ${m.nomFichier}`}
                     >
                       {m.vignette ? (
@@ -92,6 +110,16 @@ export function Galerie({ medias }: { medias: MediaGalerie[] }) {
                       ) : (
                         <span className="flex h-full items-center justify-center p-1 text-[10px] text-encre-douce">{m.nomFichier}</span>
                       )}
+                      {!m.dansLivre && m.dansSite ? (
+                        <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white" title="Pas dans le livre">
+                          site
+                        </span>
+                      ) : null}
+                      {m.legende ? (
+                        <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[10px] text-white" aria-hidden>
+                          ✎
+                        </span>
+                      ) : null}
                       {m.type === "video" ? (
                         <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1 text-[10px] text-white">▶</span>
                       ) : null}
@@ -104,41 +132,17 @@ export function Galerie({ medias }: { medias: MediaGalerie[] }) {
         })}
       </div>
 
-      {ouvert ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={ouvert.nomFichier}
-          className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white"
-          onClick={() => setOuvert(null)}
-        >
-          <div className="flex items-center justify-between gap-3 p-3 text-sm">
-            <span className="truncate">
-              {ouvert.instant ? `${fmtJour.format(new Date(ouvert.instant))}, ${fmtHeure.format(new Date(ouvert.instant))}` : "Sans date"}
-              {ouvert.auteur ? ` · ${ouvert.auteur}` : ""}
-            </span>
-            <button type="button" className="min-h-11 px-3" onClick={() => setOuvert(null)}>
-              Fermer
-            </button>
-          </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center p-2">
-            {ouvert.type === "video" && ouvert.video ? (
-              <video
-                src={ouvert.video}
-                poster={ouvert.moyenne ?? undefined}
-                controls
-                playsInline
-                className="max-h-full max-w-full"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : ouvert.moyenne ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={ouvert.moyenne} alt="" className="max-h-full max-w-full object-contain" />
-            ) : (
-              <p>Aperçu indisponible pour {ouvert.nomFichier}</p>
-            )}
-          </div>
-        </div>
+      {ouvert !== null ? (
+        <Visionneuse
+          slug={slug}
+          medias={liste}
+          index={ouvert}
+          utilisateurId={utilisateurId}
+          estAdmin={estAdmin}
+          onIndex={setOuvert}
+          onFermer={() => setOuvert(null)}
+          onMaj={(id, maj) => setListe((l) => l.map((x) => (x.id === id ? { ...x, ...maj } : x)))}
+        />
       ) : null}
     </>
   );

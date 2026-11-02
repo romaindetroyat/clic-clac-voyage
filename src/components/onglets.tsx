@@ -9,7 +9,7 @@ export function Onglets({ liens }: { liens: { href: string; libelle: string }[] 
     <nav aria-label="Sections du voyage" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <ul className="flex gap-1 border-b border-filet">
         {liens.map((l) => {
-          const actif = chemin === l.href;
+          const actif = chemin === l.href || (l.href !== liens[0].href && chemin.startsWith(`${l.href}/`));
           return (
             <li key={l.href}>
               <Link

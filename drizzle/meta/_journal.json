@@ -15,6 +15,13 @@
       "when": 1793636580931,
       "tag": "0001_medias",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793638775237,
+      "tag": "0002_recit",
+      "breakpoints": true
     }
   ]
 }

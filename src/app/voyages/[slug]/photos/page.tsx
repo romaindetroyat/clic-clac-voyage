@@ -9,7 +9,7 @@ export const metadata = { title: "Photos" };
 
 export default async function Photos({ params }: PageProps<"/voyages/[slug]/photos">) {
   const { slug } = await params;
-  const { voyage } = await accesVoyage(slug);
+  const { voyage, utilisateur, estAdmin } = await accesVoyage(slug);
   const medias = await galerie(await getDb(), getStockage(), voyage.id);
   if (medias.length === 0) {
     return (
@@ -29,7 +29,7 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
         {medias.length - photos ? ` · ${medias.length - photos} vidéo${medias.length - photos > 1 ? "s" : ""}` : ""}, dans
         l’ordre chronologique
       </p>
-      <Galerie medias={medias} />
+      <Galerie medias={medias} slug={voyage.slug} utilisateurId={utilisateur.id} estAdmin={estAdmin} />
     </div>
   );
 }

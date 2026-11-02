@@ -189,6 +189,25 @@ export const sourceMedia = pgEnum("source_media", [
   "raccourci-ios",
 ]);
 
+/** Épisode du voyage : un jour, une étape, un événement. */
+export const episode = pgTable(
+  "episode",
+  {
+    id: text("id").primaryKey(),
+    voyageId: text("voyage_id")
+      .notNull()
+      .references(() => voyage.id, { onDelete: "cascade" }),
+    ordre: integer("ordre").notNull(),
+    titre: text("titre").notNull(),
+    lieu: text("lieu"),
+    recit: text("recit"),
+    debut: timestamp("debut", { withTimezone: true }),
+    fin: timestamp("fin", { withTimezone: true }),
+    ...horodatage,
+  },
+  (t) => [index("episode_voyage_idx").on(t.voyageId, t.ordre)],
+);
+
 /**
  * Un appareil photo ou téléphone, par voyage : sert au recalage d'horloge.
  * La clé vient de l'EXIF (marque|modèle|numéro de série) ou, à défaut, de la personne qui importe.
@@ -254,6 +273,12 @@ export const media = pgTable(
     copieCompressee: boolean("copie_compressee").notNull().default(false),
     // Masqué car doublon d'un autre média de meilleure qualité.
     doublonDe: text("doublon_de"),
+
+    // Récit et sélection
+    episodeId: text("episode_id").references(() => episode.id, { onDelete: "set null" }),
+    legende: text("legende"),
+    dansSite: boolean("dans_site").notNull().default(true),
+    dansLivre: boolean("dans_livre").notNull().default(true),
     ...horodatage,
   },
   (t) => [
@@ -263,3 +288,38 @@ export const media = pgTable(
 );
 
 export type Media = typeof media.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* Commentaires et réactions                                           */
+/* ------------------------------------------------------------------ */
+
+export const commentaire = pgTable(
+  "commentaire",
+  {
+    id: text("id").primaryKey(),
+    mediaId: text("media_id")
+      .notNull()
+      .references(() => media.id, { onDelete: "cascade" }),
+    auteurId: text("auteur_id").references(() => user.id, { onDelete: "set null" }),
+    texte: text("texte").notNull(),
+    ...horodatage,
+  },
+  (t) => [index("commentaire_media_idx").on(t.mediaId)],
+);
+
+export const reaction = pgTable(
+  "reaction",
+  {
+    mediaId: text("media_id")
+      .notNull()
+      .references(() => media.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.mediaId, t.userId, t.emoji] })],
+);
+
+export type Episode = typeof episode.$inferSelect;

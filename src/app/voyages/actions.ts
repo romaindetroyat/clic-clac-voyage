@@ -10,6 +10,15 @@ import { exigerUtilisateur, getAuth } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { user } from "@/server/db/schema";
 import { reglerDecalage } from "@/server/domaine/medias";
+import {
+  deplacerEpisode,
+  fusionnerAvecSuivant,
+  modifierEpisode,
+  proposerDecoupage,
+  rangerNonClasses,
+  scinder,
+  supprimerEpisode,
+} from "@/server/domaine/recit";
 import { formaterDecalage, lireDecalage } from "@/server/domaine/temps";
 import { courrielInvitation } from "@/server/email/modeles";
 import { envoyerCourriel } from "@/server/email/envoi";
@@ -184,5 +193,71 @@ export async function actionRecalerAppareil(slug: string, appareilId: string, _:
     await reglerDecalage(await getDb(), { voyageId: voyage.id, userId: utilisateur.id, estAdmin: role === "admin" }, appareilId, secondes);
     revalidatePath(`/voyages/${slug}`, "layout");
     return { message: `Décalage enregistré : ${formaterDecalage(secondes)}.` };
+  });
+}
+
+/* ------------------------------ Épisodes ------------------------------ */
+
+async function surEpisodes(slug: string, fn: (voyageId: string) => Promise<EtatAction>) {
+  return proteger(async () => {
+    const { voyage } = await exigerVoyage(slug, "admin");
+    const r = await fn(voyage.id);
+    revalidatePath(`/voyages/${slug}`, "layout");
+    return r;
+  });
+}
+
+export async function actionProposerDecoupage(slug: string): Promise<EtatAction> {
+  return surEpisodes(slug, async (id) => {
+    const n = await proposerDecoupage(await getDb(), id);
+    return { message: `${n} épisode${n > 1 ? "s" : ""} proposé${n > 1 ? "s" : ""}.` };
+  });
+}
+
+export async function actionRangerNonClasses(slug: string): Promise<EtatAction> {
+  return surEpisodes(slug, async (id) => {
+    const n = await rangerNonClasses(await getDb(), id);
+    return { message: `${n} photo${n > 1 ? "s" : ""} rangée${n > 1 ? "s" : ""}.` };
+  });
+}
+
+const schemaEpisode = z.object({
+  titre: z.string().trim().min(1, "Le titre est obligatoire.").max(120),
+  lieu: z.string().max(120).optional(),
+  recit: z.string().max(20_000).optional(),
+});
+
+export async function actionModifierEpisode(slug: string, episodeId: string, _: EtatAction, form: FormData): Promise<EtatAction> {
+  return surEpisodes(slug, async (id) => {
+    await modifierEpisode(await getDb(), id, episodeId, schemaEpisode.parse(Object.fromEntries(form)));
+    return { message: "Épisode enregistré." };
+  });
+}
+
+export async function actionFusionner(slug: string, episodeId: string): Promise<EtatAction> {
+  return surEpisodes(slug, async (id) => {
+    await fusionnerAvecSuivant(await getDb(), id, episodeId);
+    return { message: "Épisodes fusionnés." };
+  });
+}
+
+export async function actionDeplacerEpisode(slug: string, episodeId: string, sens: -1 | 1): Promise<EtatAction> {
+  return surEpisodes(slug, async (id) => {
+    await deplacerEpisode(await getDb(), id, episodeId, sens);
+    return undefined;
+  });
+}
+
+export async function actionSupprimerEpisode(slug: string, episodeId: string): Promise<EtatAction> {
+  return surEpisodes(slug, async (id) => {
+    await supprimerEpisode(await getDb(), id, episodeId);
+    return { message: "Épisode supprimé : ses photos sont « à classer »." };
+  });
+}
+
+export async function actionScinder(slug: string, episodeId: string, mediaId: string): Promise<EtatAction> {
+  return surEpisodes(slug, async (id) => {
+    await scinder(await getDb(), id, episodeId, mediaId);
+    return { message: "Épisode scindé." };
   });
 }

@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Inter } from "next/font/google";
+import { EB_Garamond, Inter } from "next/font/google";
 import { EnregistrementServiceWorker } from "@/components/service-worker";
 import "./globals.css";
 
-const titre = Cormorant_Garamond({ variable: "--font-titre", subsets: ["latin"], weight: ["500", "600"] });
+// EB Garamond plutôt que Cormorant : accents circonflexes bien dessinés (« août », « Hôtel »).
+const titre = EB_Garamond({ variable: "--font-titre", subsets: ["latin"], weight: ["400", "500"] });
 const texte = Inter({ variable: "--font-texte", subsets: ["latin"] });
 
 export const metadata: Metadata = {

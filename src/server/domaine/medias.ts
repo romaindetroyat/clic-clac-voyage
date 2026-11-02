@@ -281,13 +281,24 @@ export type MediaGalerie = {
   moyenne: string | null;
   /** Vidéo allégée lisible dans le navigateur. */
   video: string | null;
+  episodeId: string | null;
+  legende: string | null;
+  dansSite: boolean;
+  dansLivre: boolean;
 };
 
 /** Médias visibles du voyage, dans l'ordre chronologique corrigé, avec des URL de lecture à durée limitée. */
-export async function galerie(db: Db, stockage: Stockage, voyageId: string): Promise<MediaGalerie[]> {
-  const lignes = await db.query.media.findMany({
-    where: and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)),
-  });
+export async function galerie(
+  db: Db,
+  stockage: Stockage,
+  voyageId: string,
+  filtre: { episodeId?: string | null } = {},
+): Promise<MediaGalerie[]> {
+  const conditions = [eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)];
+  if (filtre.episodeId !== undefined) {
+    conditions.push(filtre.episodeId === null ? isNull(media.episodeId) : eq(media.episodeId, filtre.episodeId));
+  }
+  const lignes = await db.query.media.findMany({ where: and(...conditions) });
   const apps = lignes.length
     ? await db.query.appareil.findMany({ where: inArray(appareil.id, [...new Set(lignes.map((l) => l.appareilId!).filter(Boolean))]) })
     : [];
@@ -319,6 +330,10 @@ export async function galerie(db: Db, stockage: Stockage, voyageId: string): Pro
       vignette: await lire(l.versions.s),
       moyenne: await lire(l.versions.m ?? l.versions.l ?? l.versions.affiche),
       video: await lire(l.versions.video),
+      episodeId: l.episodeId,
+      legende: l.legende,
+      dansSite: l.dansSite,
+      dansLivre: l.dansLivre,
     })),
   );
 }
