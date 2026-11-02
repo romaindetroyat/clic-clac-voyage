@@ -1,0 +1,28 @@
+{
+  "mode": "yolo",
+  "granularity": "coarse",
+  "parallelization": true,
+  "commit_docs": true,
+  "language": {
+    "ui": "fr",
+    "docs": "fr",
+    "commits": "fr"
+  },
+  "workflow": {
+    "research": true,
+    "research_depth": "short",
+    "plan_check": false,
+    "verifier": true
+  },
+  "testing": {
+    "unit": "vitest",
+    "e2e": "playwright",
+    "focus": [
+      "règles des imprimeurs et calcul du dos",
+      "moteur de mise en page du livre",
+      "calcul des prix et des parts par personne",
+      "droits d'accès par voyage et par rôle",
+      "recalage d'horloge et dédoublonnage"
+    ]
+  }
+}
