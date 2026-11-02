@@ -9,6 +9,7 @@
 export const SEUIL_HAMMING = 8;
 export const ECART_RATIO = 0.01;
 export const ECART_TEMPS_MS = 36 * 3600 * 1000;
+export const ECART_ORIGINAUX_MS = 1000;
 
 export type Empreinte = {
   id: string;
@@ -18,6 +19,8 @@ export type Empreinte = {
   taille: number;
   instant: Date | null;
   copieCompressee?: boolean;
+  mime?: string;
+  auteurId?: string | null;
 };
 
 /** Distance de Hamming entre deux dHash 64 bits en hexadécimal. */
@@ -44,8 +47,20 @@ export function memePhoto(a: Empreinte, b: Empreinte): boolean {
   const ra = ratio(a);
   const rb = ratio(b);
   if (ra && rb && Math.abs(ra - rb) / rb > ECART_RATIO) return false;
-  // Les copies WhatsApp n'ont pas de date EXIF fiable : on ne bloque que si les deux en ont une.
-  if (a.instant && b.instant && Math.abs(a.instant.getTime() - b.instant.getTime()) > ECART_TEMPS_MS) return false;
+  if (a.instant && b.instant) {
+    const ecart = Math.abs(a.instant.getTime() - b.instant.getTime());
+    // Une copie compressée (WhatsApp…) n'a qu'une date approximative (heure du message) : large tolérance.
+    // Deux originaux, eux, gardent l'heure exacte de prise de vue : à plus d'une seconde d'écart,
+    // ce sont deux photos différentes (une rafale, par exemple), pas des doublons.
+    if (a.copieCompressee || b.copieCompressee) return ecart <= ECART_TEMPS_MS;
+    if (ecart >= ECART_ORIGINAUX_MS) return false;
+    // Même seconde : un appareil en rafale prend plusieurs images par seconde, au même format,
+    // de la même taille, envoyées par la même personne. Un vrai doublon vient d'ailleurs
+    // (autre format, autre personne, autre taille), comme un HEIC et son export JPEG.
+    const memeSource =
+      a.mime === b.mime && a.auteurId === b.auteurId && a.largeur === b.largeur && a.hauteur === b.hauteur;
+    if (memeSource && a.mime !== undefined) return false;
+  }
   return true;
 }
 

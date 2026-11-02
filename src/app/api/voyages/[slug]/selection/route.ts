@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { contexteApi, repondre } from "@/server/api";
 import { getDb } from "@/server/db";
+import { choisirDansRafale, detecterRafales, enregistrerQualite } from "@/server/domaine/rafales";
 import { cocher, deplacerMedias } from "@/server/domaine/recit";
 import { ErreurMetier } from "@/server/domaine/voyages";
 
@@ -18,6 +19,14 @@ const corps = z.discriminatedUnion("action", [
     ids: z.array(z.string().uuid()).min(1).max(5000),
     episodeId: z.string().uuid().nullable(),
   }),
+  z.object({ action: z.literal("choisir-rafale"), mediaId: z.string().uuid() }),
+  z.object({ action: z.literal("detecter-rafales") }),
+  z.object({
+    action: z.literal("qualite"),
+    mesures: z
+      .array(z.object({ id: z.string().uuid(), nettete: z.number().min(0).max(1), exposition: z.number().min(0).max(1) }))
+      .max(200),
+  }),
 ]);
 
 export async function POST(req: NextRequest, { params }: RouteContext<"/api/voyages/[slug]/selection">) {
@@ -27,6 +36,9 @@ export async function POST(req: NextRequest, { params }: RouteContext<"/api/voya
     const db = await getDb();
     const a = corps.parse(await req.json());
     if (a.action === "cocher") await cocher(db, ctx.voyageId, a.ids, a.champ, a.valeur);
+    else if (a.action === "choisir-rafale") await choisirDansRafale(db, ctx.voyageId, a.mediaId);
+    else if (a.action === "qualite") await enregistrerQualite(db, ctx.voyageId, a.mesures);
+    else if (a.action === "detecter-rafales") return detecterRafales(db, ctx.voyageId);
     else {
       if (!ctx.estAdmin) throw new ErreurMetier("Seul l'administrateur organise les épisodes.");
       await deplacerMedias(db, ctx.voyageId, a.ids, a.episodeId);

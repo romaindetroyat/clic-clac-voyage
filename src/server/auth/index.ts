@@ -18,6 +18,7 @@ export function getAuth(): Promise<Auth> {
         secret: e.BETTER_AUTH_SECRET,
         baseURL: appUrl(),
         adminEmails: adminEmails(),
+        codesParMinute: e.CODES_PAR_MINUTE,
         google:
           e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET
             ? { clientId: e.GOOGLE_CLIENT_ID, clientSecret: e.GOOGLE_CLIENT_SECRET }

@@ -16,6 +16,8 @@ export type OptionsAuth = {
   google?: { clientId: string; clientSecret: string };
   /** Limitation de débit (désactivée dans les tests unitaires). */
   limiterDebit?: boolean;
+  /** Codes envoyés par minute et par adresse IP (10 par défaut). */
+  codesParMinute?: number;
   envoyerCode: (args: { email: string; code: string; lien: string; minutes: number }) => Promise<void>;
 };
 
@@ -59,7 +61,7 @@ export function creerAuth(o: OptionsAuth) {
       max: 60,
       customRules: {
         // Un groupe sur le même Wi-Fi partage une adresse IP : on laisse de la marge.
-        "/email-otp/send-verification-otp": { window: 60, max: 10 },
+        "/email-otp/send-verification-otp": { window: 60, max: o.codesParMinute ?? 10 },
         "/sign-in/email-otp": { window: 60, max: 20 },
       },
     },

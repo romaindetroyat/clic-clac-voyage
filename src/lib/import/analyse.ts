@@ -4,6 +4,7 @@
  * versions web en WebP. Les versions générées ne contiennent aucune métadonnée (ni GPS).
  */
 import { createSHA256 } from "hash-wasm";
+import { exposition, gris, nettete } from "../qualite";
 import { estRaw, extension, mimeDeFichier, TAILLES_VERSIONS, typeDeFichier, type Analyse } from "./types";
 
 const TRANCHE = 8 * 1024 * 1024;
@@ -128,6 +129,17 @@ function canevas(l: number, h: number) {
   return { c, ctx };
 }
 
+/** Netteté et exposition mesurées sur une réduction à 512 px de côté. */
+export function mesurerQualite(image: CanvasImageSource & { width: number; height: number }) {
+  const echelle = Math.min(1, 512 / Math.max(image.width, image.height));
+  const l = Math.max(3, Math.round(image.width * echelle));
+  const h = Math.max(3, Math.round(image.height * echelle));
+  const { ctx } = canevas(l, h);
+  ctx.drawImage(image, 0, 0, l, h);
+  const g = gris(ctx.getImageData(0, 0, l, h).data);
+  return { nettete: nettete(g, l, h), exposition: exposition(g) };
+}
+
 /** dHash 64 bits : on réduit à 9×8 en gris et on compare chaque pixel à son voisin de droite. */
 export function dhash(image: CanvasImageSource & { width: number; height: number }): string {
   const { ctx } = canevas(9, 8);
@@ -193,6 +205,7 @@ export async function analyserPhoto(f: File, progression?: (f: number) => void):
     base.largeur = image.width;
     base.hauteur = image.height;
     base.dhash = dhash(image);
+    Object.assign(base, mesurerQualite(image));
     base.versions.s = await versionWeb(image, TAILLES_VERSIONS.s);
     progression?.(0.7);
     base.versions.m = await versionWeb(image, TAILLES_VERSIONS.m);
