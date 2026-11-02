@@ -2,7 +2,7 @@
 
 **Phase en cours** : 1, Fondations (code terminé, déploiement en attente)
 **Dernière action** : phase 1 codée et testée en local (2 novembre 2026)
-**Prochaine étape** : brancher Vercel, Neon et Resend, vérifier sur téléphone, puis phase 2
+**Prochaine étape** : vérifier la connexion Gmail et l'installation sur téléphone, puis phase 2
 
 ## Phase 1 : où on en est
 
@@ -12,7 +12,7 @@
 | Plusieurs voyages, cloisonnement, 404 pour un non-membre | ✅ tests unitaires (pglite) et E2E |
 | PWA installable | ✅ manifeste, icônes, service worker ; ⏳ installation à vérifier sur un vrai téléphone après déploiement |
 | Pas d'URL codée en dur, CI anti-secrets | ✅ `APP_URL` partout ; gitleaks en CI |
-| Déploiement Vercel | ⏳ le connecteur Vercel n'a pas le droit de créer le projet (403) : création manuelle, voir `docs/DEPLOIEMENT.md` |
+| Déploiement Vercel | ✅ projet créé à la main (le connecteur n'a pas les droits), prévisualisation déployée ; production à la fusion de la PR #1 |
 
 ## Décisions prises
 
@@ -22,7 +22,7 @@ Voir `PROJECT.md` (cadrage) et `research/SUMMARY.md` (stack). En bref : Vercel H
 
 | Quand | Quoi |
 |---|---|
-| Phase 1 | Projet Vercel relié au dépôt ; base Neon (via la marketplace Vercel) ; compte Resend et domaine d'envoi vérifié (ou expéditeur de test) ; identifiants OAuth Google (facultatif) |
+| Phase 1 | ✅ Projet Vercel, base Neon (neon-carmine-notebook), secrets ; Gmail par mot de passe d'application ; identifiants OAuth Google (facultatif, plus tard) |
 | Phase 2 | Compte Cloudflare : bucket R2, jetons d'API, Worker ; clés d'application Dropbox et OneDrive ; projet Google Cloud (Picker Photos et Drive) |
 | Phase 5 | Secrets GitHub Actions pour l'accès R2 et le rappel vers l'app |
 | Phase 6 | Clés sandbox Lulu, Prodigi et Gelato (V2) |
