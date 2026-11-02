@@ -40,7 +40,7 @@ Les e-mails partent de ton adresse, avec « Clic-Clac Voyage » comme nom d'exp�
 
 ## 4. Bucket Cloudflare R2
 
-- Juridiction **European Union** (garantit que les photos restent dans l'UE ; un simple « location hint » n'est qu'indicatif).
+- Emplacement actuel : **ENAM** (est de l'Amérique du Nord), choix confirmé le 2 novembre 2026 ; la demande « Europe de l'Ouest » n'est qu'une indication que Cloudflare n'a pas suivie. Pour garantir l'UE, recréer le bucket en juridiction **European Union** et définir `R2_JURIDICTION=eu`.
 - CORS : origines de l'app, méthodes `GET, PUT, HEAD`, en-têtes `*`, en-tête exposé `ETag` (indispensable à l'envoi en morceaux).
 - Règle de cycle de vie : « Abort incomplete multipart uploads after 7 days ».
 
