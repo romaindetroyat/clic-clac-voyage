@@ -16,7 +16,7 @@
 
 ## Décisions prises
 
-Voir `PROJECT.md` (cadrage) et `research/SUMMARY.md` (stack). En bref : Vercel Hobby, Neon + Drizzle, Better Auth + Resend, R2 + Uppy, versions web dans le navigateur, `render-core` WebGL2, Typst pour le PDF, GitHub Actions pour les tâches longues, `APP_URL` sans domaine personnalisé au départ.
+Voir `PROJECT.md` (cadrage) et `research/SUMMARY.md` (stack). En bref : Vercel Hobby, Neon + Drizzle, Better Auth + e-mails Gmail (SMTP), R2 + Uppy, versions web dans le navigateur, `render-core` WebGL2, Typst pour le PDF, GitHub Actions pour les tâches longues, `APP_URL` sans domaine personnalisé au départ.
 
 ## À fournir par Romain (bloquant au moment indiqué)
 

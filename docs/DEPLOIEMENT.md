@@ -20,12 +20,20 @@ L'intégration ajoute `DATABASE_URL` toute seule. Les tables sont créées au pr
 |---|---|---|
 | `BETTER_AUTH_SECRET` | 32 caractères aléatoires : `openssl rand -base64 32` | oui |
 | `ADMIN_EMAILS` | ton adresse (ex. `romain@…`), séparées par des virgules | oui |
-| `RESEND_API_KEY` | clé d'API Resend | oui |
-| `EMAIL_FROM` | `Clic-Clac Voyage <bonjour@ton-domaine>` (domaine vérifié chez Resend) | oui pour inviter d'autres personnes |
+| `GMAIL_USER` | ton adresse Gmail : les e-mails partent de là | oui (ou Resend) |
+| `GMAIL_APP_PASSWORD` | mot de passe d'application Google (voir ci-dessous) | oui (ou Resend) |
+| `RESEND_API_KEY`, `EMAIL_FROM` | alternative à Gmail, seulement avec un domaine vérifié | non |
 | `APP_URL` | vide : l'URL de production Vercel est utilisée. À remplir le jour où un domaine est branché (`https://clic-clac-voyage.fr`) | non |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | identifiants OAuth Google, URI de redirection `<APP_URL>/api/auth/callback/google` | non |
 
-Sans domaine vérifié chez Resend, l'expéditeur de test `onboarding@resend.dev` n'envoie qu'à l'adresse du compte Resend.
+### Mot de passe d'application Gmail
+
+1. La validation en deux étapes doit être active sur le compte Google.
+2. Aller sur https://myaccount.google.com/apppasswords, créer un mot de passe nommé « Clic-Clac Voyage ».
+3. Copier les 16 caractères dans `GMAIL_USER`/`GMAIL_APP_PASSWORD` sur Vercel (jamais dans le dépôt).
+
+Gmail accepte environ 500 envois par jour : largement assez pour les codes de connexion et les invitations.
+Les e-mails partent de ton adresse, avec « Clic-Clac Voyage » comme nom d'expéditeur.
 
 ## 4. Développement local
 

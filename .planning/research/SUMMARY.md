@@ -11,7 +11,7 @@ Relevé du 2 novembre 2026. Détails et sources dans les quatre fichiers voisins
 | URL | `APP_URL` (URL Vercel par défaut au départ) | Passage à `clic-clac-voyage.fr` plus tard sans changement de code. |
 | Base | **Neon Free** + **Drizzle** (driver HTTP Neon) | Veille après 5 min, réveil en quelques centaines de ms ; Supabase gratuit se met en pause après 7 jours sans activité, rédhibitoire pour un usage par à-coups. |
 | Auth | **Better Auth** : lien magique, code OTP à 6 chiffres, Google | Auth.js n'est plus qu'en maintenance. Inscription seulement avec une invitation valide (une organisation Better Auth = un voyage, ou tables maison). |
-| E-mails | **Resend** gratuit (3 000 par mois, 100 par jour) | Domaine d'envoi à vérifier dès la phase 1. |
+| E-mails | **Gmail en SMTP** (mot de passe d’application), Resend en alternative | Décision du 2 novembre 2026 : pas de domaine, peu d’e-mails ; Resend n’envoie pas depuis une adresse gmail.com. |
 | Médias | **Cloudflare R2**, multipart par URL présignée depuis le navigateur | Aucun fichier ne transite par Vercel. CORS avec l'en-tête `ETag` exposé. Originaux passés en Infrequent Access après 30 jours. |
 | Envoi | **Uppy** + `@uppy/aws-s3`, file persistante maison en IndexedDB | tus impossible sans serveur. La reprise des gros fichiers est à écrire nous-mêmes. Background Sync n'existe pas sur iOS : la reprise se fait à la réouverture. |
 | Versions web | Générées **dans le navigateur** à l'import (WebP 400 / 1 200 / 2 400 px) | HEIC natif sur Safari, libheif wasm ailleurs, RAW par leur aperçu JPEG intégré. Rattrapage par une tâche GitHub Actions. Pas de `next/image` ni de Cloudflare Images sur les photos (coût). |

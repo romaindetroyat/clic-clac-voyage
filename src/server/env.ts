@@ -16,8 +16,12 @@ const schema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   // E-mails autorisés à se connecter sans invitation (amorçage), séparés par des virgules.
   ADMIN_EMAILS: z.string().default(""),
+  // Envoi par Gmail (SMTP) : adresse Gmail + mot de passe d'application Google (16 caractères).
+  GMAIL_USER: z.string().email().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
+  // Ou envoi par Resend (nécessite un domaine vérifié).
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Clic-Clac Voyage <onboarding@resend.dev>"),
+  EMAIL_FROM: z.string().optional(),
   // Si défini, les e-mails sont écrits dans ce fichier au lieu d'être envoyés (dev, tests E2E).
   MAIL_OUTBOX_FILE: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
