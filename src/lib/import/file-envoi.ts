@@ -33,6 +33,8 @@ export type Element = {
   mediaId?: string;
   morceaux?: Morceau[];
   tentatives?: number;
+  /** Date imposée (ex. heure du message WhatsApp) quand le fichier n'en contient pas. */
+  priseImposee?: string;
   /** Pas de nouvel essai avant cet instant (ms). */
   prochainEssai?: number;
 };
@@ -162,7 +164,10 @@ export class FileEnvoi {
   }
 
   /** Ajoute des fichiers à la file (copiés dans le navigateur pour survivre à une fermeture). */
-  async ajouter(fichiers: File[], options: { source?: string; copieCompressee?: boolean } = {}) {
+  async ajouter(
+    fichiers: File[],
+    options: { source?: string; copieCompressee?: boolean; dates?: Map<string, string | null> } = {},
+  ) {
     await this.pret;
     let ignores = 0;
     const t = Date.now();
@@ -184,6 +189,7 @@ export class FileEnvoi {
         etat: "attente",
         progression: 0,
         fichier: f,
+        priseImposee: options.dates?.get(f.name) ?? undefined,
       };
       await this.sauver(e);
     }
@@ -306,8 +312,8 @@ export class FileEnvoi {
           largeur: a.largeur,
           hauteur: a.hauteur,
           dureeSecondes: a.dureeSecondes,
-          priseLocale: a.priseLocale,
-          decalageExifMinutes: a.decalageExifMinutes,
+          priseLocale: a.priseLocale ?? e.priseImposee ?? null,
+          decalageExifMinutes: a.priseLocale ? a.decalageExifMinutes : null,
           latitude: a.latitude,
           longitude: a.longitude,
           appareil: a.appareil,

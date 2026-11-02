@@ -38,3 +38,10 @@ export function stockageConfigure(): boolean {
   const e = env();
   return !!(e.R2_ACCOUNT_ID && e.R2_BUCKET) || process.env.NODE_ENV !== "production" || !!e.STOCKAGE_LOCAL;
 }
+
+/** Le stockage local ne sert qu'en développement et en test (ou si STOCKAGE_LOCAL est défini). */
+export function stockageLocalActif(): boolean {
+  const e = env();
+  const r2 = !!(e.R2_ACCOUNT_ID && e.R2_ACCESS_KEY_ID && e.R2_SECRET_ACCESS_KEY && e.R2_BUCKET);
+  return !r2 && (process.env.NODE_ENV !== "production" || !!e.STOCKAGE_LOCAL);
+}

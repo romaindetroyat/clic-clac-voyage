@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getStockageLocal } from "@/server/stockage";
+import { getStockageLocal, stockageLocalActif } from "@/server/stockage";
 
 /** Point d'entrée du stockage local (imitation des URL signées R2). Désactivé en production sans STOCKAGE_LOCAL. */
 export async function PUT(req: NextRequest) {
+  if (!stockageLocalActif()) return new NextResponse("Introuvable", { status: 404 });
   const s = getStockageLocal();
   const o = s.lireJeton(req.nextUrl.searchParams.get("j") ?? "");
   if (!o) return new NextResponse("Signature invalide ou expirée", { status: 403 });
@@ -11,6 +12,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  if (!stockageLocalActif()) return new NextResponse("Introuvable", { status: 404 });
   const s = getStockageLocal();
   const o = s.lireJeton(req.nextUrl.searchParams.get("j") ?? "");
   if (!o) return new NextResponse("Signature invalide ou expirée", { status: 403 });

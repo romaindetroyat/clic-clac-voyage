@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { fileEnvoi, type Element } from "@/lib/import/file-envoi";
+import { dateDepuisNom, estMediaWhatsapp, lireDiscussion } from "@/lib/import/whatsapp";
+import { extraireZip, lireTexteZip } from "@/lib/import/zip";
 import { fichiersDepuisDepot } from "./dossiers";
 
 const ACCEPT =
-  "image/*,video/*,.heic,.heif,.hif,.dng,.cr2,.cr3,.nef,.nrw,.arw,.raf,.orf,.rw2,.pef,.srw,.mov,.mp4,.m4v";
+  ".zip,image/*,video/*,.heic,.heif,.hif,.dng,.cr2,.cr3,.nef,.nrw,.arw,.raf,.orf,.rw2,.pef,.srw,.mov,.mp4,.m4v";
 
 function useEnLigne() {
   return useSyncExternalStore(
@@ -49,12 +51,34 @@ export function Importeur({ voyage }: { voyage: string }) {
 
   useEffect(() => file.abonner(setElements), [file]);
 
-  async function ajouter(fichiers: File[]) {
+  async function ajouter(tous: File[]) {
+    const archives = tous.filter((f) => f.name.toLowerCase().endsWith(".zip"));
+    const fichiers = tous.filter((f) => !f.name.toLowerCase().endsWith(".zip"));
+    for (const zip of archives) await importerWhatsapp(zip);
+    if (!fichiers.length) return;
     const { ajoutes, ignores } = await file.ajouter(fichiers);
     setMessage(
       `${ajoutes} fichier${ajoutes > 1 ? "s" : ""} ajouté${ajoutes > 1 ? "s" : ""} à l’envoi` +
         (ignores ? ` (${ignores} ignoré${ignores > 1 ? "s" : ""} : ni photo ni vidéo)` : "."),
     );
+  }
+
+  /** Archive « Exporter la discussion » de WhatsApp : médias + date et auteur tirés du texte. */
+  async function importerWhatsapp(zip: File) {
+    setMessage(`Lecture de l’archive ${zip.name}…`);
+    try {
+      const texte = await lireTexteZip(zip, (n) => /\.txt$/i.test(n));
+      const infos = texte ? lireDiscussion(texte) : new Map();
+      const medias = await extraireZip(zip, (n) => n.endsWith("/") || estMediaWhatsapp(n.split("/").pop() ?? n));
+      const dates = new Map(medias.map((m) => [m.name, infos.get(m.name)?.priseLocale ?? dateDepuisNom(m.name)]));
+      const { ajoutes } = await file.ajouter(medias, { source: "whatsapp", copieCompressee: true, dates });
+      setMessage(
+        `${ajoutes} photo${ajoutes > 1 ? "s" : ""} ou vidéo${ajoutes > 1 ? "s" : ""} WhatsApp ajoutée${ajoutes > 1 ? "s" : ""}. ` +
+          "Si l’original arrive plus tard, il remplacera automatiquement la copie compressée.",
+      );
+    } catch {
+      setMessage(`Impossible de lire l’archive ${zip.name}.`);
+    }
   }
 
   const stats = useMemo(() => {
@@ -94,7 +118,8 @@ export function Importeur({ voyage }: { voyage: string }) {
         <p className="font-titre text-2xl">Ajoutez vos photos et vidéos</p>
         <p className="max-w-md text-sm text-encre-douce">
           Choisissez-les dans la galerie de votre téléphone, ou glissez ici des fichiers et des dossiers entiers depuis
-          votre ordinateur. Les originaux sont conservés en pleine qualité, et les doublons sont écartés.
+          votre ordinateur. Les originaux sont conservés en pleine qualité, et les doublons sont écartés. Une discussion
+          WhatsApp exportée (fichier .zip) est aussi acceptée.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <button type="button" className="bouton" onClick={() => choix.current?.click()}>
@@ -127,6 +152,9 @@ export function Importeur({ voyage }: { voyage: string }) {
             e.target.value = "";
           }}
         />
+        <Link href={`/voyages/${voyage}/importer/aide`} className="lien text-sm">
+          iPhone, iCloud, WhatsApp, carte SD : mode d’emploi
+        </Link>
         {message ? (
           <p role="status" className="text-sm text-succes">
             {message}
