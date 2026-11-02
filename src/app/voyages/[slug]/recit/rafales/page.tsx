@@ -2,6 +2,8 @@ import Link from "next/link";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
 import { rafalesDe } from "@/server/domaine/rafales";
+import { iaActive } from "@/server/ia/client";
+import { avisIa, rafalesADepartager } from "@/server/ia/rafales";
 import { getStockage } from "@/server/stockage";
 import { ChoixRafales } from "./choix-rafales";
 
@@ -9,8 +11,11 @@ export const metadata = { title: "Rafales" };
 
 export default async function Rafales({ params }: PageProps<"/voyages/[slug]/recit/rafales">) {
   const { slug } = await params;
-  const { voyage } = await accesVoyage(slug);
-  const { rafales, aMesurer } = await rafalesDe(await getDb(), voyage.id);
+  const { voyage, estAdmin } = await accesVoyage(slug);
+  const db = await getDb();
+  const { rafales, aMesurer } = await rafalesDe(db, voyage.id);
+  const ia = iaActive() && estAdmin;
+  const [avis, hesitantes] = ia ? await Promise.all([avisIa(db, voyage.id), rafalesADepartager(db, voyage.id)]) : [new Map<string, string>(), []];
   const stockage = getStockage();
   const DUREE = 6 * 3600;
   const groupes = await Promise.all(
@@ -22,6 +27,7 @@ export default async function Rafales({ params }: PageProps<"/voyages/[slug]/rec
           score: m.nettete === null ? null : Math.round(((m.nettete ?? 0.5) * 0.65 + (m.exposition ?? 0.5) * 0.35) * 100),
           vignette: m.versions.m ? await stockage.urlLecture(m.versions.m, DUREE) : null,
           nom: m.nomFichier,
+          avisIa: avis.get(m.id) ?? null,
         })),
       ),
     ),
@@ -39,7 +45,7 @@ export default async function Rafales({ params }: PageProps<"/voyages/[slug]/rec
           et la mieux exposée : elle seule va dans le site et le livre. Touchez une autre photo pour la préférer.
         </p>
       </div>
-      <ChoixRafales slug={voyage.slug} groupes={groupes} aMesurer={mesures} />
+      <ChoixRafales slug={voyage.slug} groupes={groupes} aMesurer={mesures} ia={ia ? { hesitantes: hesitantes.length } : null} />
     </div>
   );
 }

@@ -40,6 +40,17 @@ export default function Confidentialite() {
       </section>
 
       <section className="space-y-3">
+        <h2 className="text-2xl">L’intelligence artificielle</h2>
+        <p>
+          Quand un organisateur le demande, une IA de vision (Claude, d’Anthropic) départage les photos d’une rafale que les mesures
+          automatiques n’ont pas su classer. Seules ces photos, en version allégée et sans leurs métadonnées (ni position, ni date), lui sont
+          envoyées. Anthropic ne s’en sert pas pour entraîner ses modèles. Aucune autre donnée du voyage n’est transmise, et le récit,
+          les légendes et les commentaires ne le sont jamais.
+        </p>
+        <p>L’IA sert aussi à vérifier les prix des imprimeurs sur le web : cela ne concerne aucune donnée personnelle.</p>
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-2xl">Ce qui n’existe pas ici</h2>
         <p>Aucune publicité, aucun traçage publicitaire, aucun outil de mesure d’audience, aucun cookie autre que celui de connexion. Aucun paiement en ligne.</p>
       </section>

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { exposition, gris, nettete } from "@/lib/qualite";
 
-type Photo = { id: string; choix: boolean; score: number | null; vignette: string | null; nom: string };
+type Photo = { id: string; choix: boolean; score: number | null; vignette: string | null; nom: string; avisIa: string | null };
 
 async function poster(slug: string, corps: object) {
   const rep = await fetch(`/api/voyages/${slug}/selection`, {
@@ -28,7 +28,17 @@ async function mesurer(url: string) {
   return { nettete: nettete(g, l, h), exposition: exposition(g) };
 }
 
-export function ChoixRafales({ slug, groupes, aMesurer }: { slug: string; groupes: Photo[][]; aMesurer: { id: string; url: string }[] }) {
+export function ChoixRafales({
+  slug,
+  groupes,
+  aMesurer,
+  ia,
+}: {
+  slug: string;
+  groupes: Photo[][];
+  aMesurer: { id: string; url: string }[];
+  ia: { hesitantes: number } | null;
+}) {
   const router = useRouter();
   const [enCours, lancer] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -49,25 +59,63 @@ export function ChoixRafales({ slug, groupes, aMesurer }: { slug: string; groupe
     });
   }
 
+  function departager() {
+    lancer(async () => {
+      let total = 0;
+      let changees = 0;
+      // Un lot par requête ; on enchaîne jusqu'au bout (ou au plafond du budget).
+      for (;;) {
+        setMessage(`L’IA départage les rafales hésitantes… (${total} faite${total > 1 ? "s" : ""})`);
+        const r = await poster(slug, { action: "departager-ia" });
+        if (r.erreur) {
+          setMessage(`${total ? `${total} rafale${total > 1 ? "s" : ""} départagée${total > 1 ? "s" : ""}. ` : ""}${r.erreur}`);
+          break;
+        }
+        total += r.faites;
+        changees += r.changees;
+        if (!r.restantes || !r.faites) {
+          setMessage(`${total} rafale${total > 1 ? "s" : ""} départagée${total > 1 ? "s" : ""} par l’IA, ${changees} choix modifié${changees > 1 ? "s" : ""}.`);
+          break;
+        }
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="bouton" disabled={enCours} onClick={detecter}>
           {enCours ? "Analyse…" : groupes.length ? "Rechercher à nouveau les rafales" : "Rechercher les rafales"}
         </button>
+        {ia && ia.hesitantes > 0 ? (
+          <button type="button" className="bouton-discret" disabled={enCours} onClick={departager}>
+            Départager avec l’IA ({ia.hesitantes} rafale{ia.hesitantes > 1 ? "s" : ""} hésitante{ia.hesitantes > 1 ? "s" : ""})
+          </button>
+        ) : null}
         {message ? (
           <p role="status" className="text-sm text-encre-douce">
             {message}
           </p>
         ) : null}
       </div>
+      {ia && ia.hesitantes > 0 ? (
+        <p className="max-w-2xl text-sm text-encre-douce">
+          Quand netteté et exposition ne suffisent pas à choisir, l’IA de vision compare les photos à égalité (yeux ouverts, expressions,
+          cadrage). Seules ces photos, en version allégée, sont envoyées à Anthropic, qui ne s’en sert pas pour entraîner ses modèles. Vos
+          choix faits à la main ne sont jamais modifiés.
+        </p>
+      ) : null}
       {groupes.length === 0 ? (
         <p className="text-encre-douce">Aucune rafale pour l’instant.</p>
       ) : (
         <ul className="space-y-6" aria-label="Rafales">
           {groupes.map((g) => (
             <li key={g[0].id} className="space-y-2" data-testid="rafale">
-              <p className="text-sm text-encre-douce">{g.length} photos</p>
+              <p className="text-sm text-encre-douce">
+                {g.length} photos
+                {g.find((p) => p.choix && p.avisIa) ? ` · choix de l’IA : ${g.find((p) => p.choix && p.avisIa)!.avisIa}` : ""}
+              </p>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {g.map((p) => (
                   <button

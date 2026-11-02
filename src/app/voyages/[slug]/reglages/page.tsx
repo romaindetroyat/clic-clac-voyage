@@ -4,6 +4,8 @@ import { estimerCout, TARIFS } from "@/lib/couts/estimation";
 import { getDb } from "@/server/db";
 import { usage } from "@/server/domaine/usage";
 import { adminEmails, appUrl } from "@/server/env";
+import { budgetIa } from "@/server/ia/budget";
+import { iaActive } from "@/server/ia/client";
 import { actionModifierVoyage, actionSupprimerVoyage } from "../../actions";
 
 export const metadata = { title: "Réglages" };
@@ -17,6 +19,7 @@ export default async function Reglages({ params }: PageProps<"/voyages/[slug]/re
   // Toute l'application : seulement pour les administrateurs de l'app (ADMIN_EMAILS).
   const toutes = adminEmails().includes(utilisateur.email.toLowerCase()) ? await usage(db) : null;
   const cout = toutes ? estimerCout(toutes) : null;
+  const ia = toutes && iaActive() ? await budgetIa(db) : null;
   const go = (o: number) => `${(o / 1e9).toFixed(o < 1e9 ? 2 : 1).replace(".", ",")} Go`;
 
   return (
@@ -59,6 +62,12 @@ export default async function Reglages({ params }: PageProps<"/voyages/[slug]/re
               gratuit jusqu’à {TARIFS.r2.gratuitGo} Go puis {TARIFS.r2.parGoMois.toString().replace(".", ",")} $ par Go et par mois (tarifs du{" "}
               {new Date(TARIFS.releve).toLocaleDateString("fr-FR")}).
             </p>
+            {ia ? (
+              <p>
+                IA (Anthropic, facturée à part) : {ia.depenseEur.toFixed(2).replace(".", ",")} € dépensés ce mois-ci, plafond{" "}
+                {ia.plafondEur.toFixed(2).replace(".", ",")} € (variable IA_BUDGET_MENSUEL_EUR dans Vercel).
+              </p>
+            ) : null}
             {cout.alertes.map((a) => (
               <p key={a} className="text-accent">
                 {a}

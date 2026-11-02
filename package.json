@@ -15,6 +15,7 @@
     "test:charge": "vitest run --config vitest.charge.config.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
     "@cantoo/pdf-lib": "^2.11.1",
     "@electric-sql/pglite": "^0.5.14",
     "@jsquash/webp": "^1.5.0",

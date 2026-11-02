@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { BoutonAction } from "@/components/formulaires";
-import { IMPRIMEURS } from "@/lib/imprimeurs/catalogue";
 import { comparer, DATE_TAUX, forme, type Tri } from "@/lib/imprimeurs/comparateur";
 import type { Source } from "@/lib/imprimeurs/types";
 import { formatParId } from "@/lib/livre/formats";
@@ -8,9 +7,15 @@ import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
 import { etatCommande } from "@/server/domaine/commande";
 import { livreDe } from "@/server/domaine/livre";
+import { adminEmails } from "@/server/env";
+import { iaActive } from "@/server/ia/client";
+import { catalogueEffectif } from "@/server/ia/imprimeurs";
+import { MajIa } from "./maj-ia";
 import { actionChoisirImprimeur } from "../../actions";
 
 export const metadata = { title: "Imprimeurs" };
+// La mise à jour par l'IA (recherche web) peut prendre quelques minutes.
+export const maxDuration = 300;
 
 const TRIS: Record<Tri, string> = { score: "Meilleur compromis", prix: "Prix", note: "Note des clients", delai: "Délai" };
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
@@ -27,14 +32,19 @@ export default async function PageImprimeurs({ params, searchParams }: PageProps
   const q = await searchParams;
   const { voyage, utilisateur, estAdmin } = await accesVoyage(slug);
   const db = await getDb();
-  const [l, commande] = await Promise.all([livreDe(db, voyage.id), etatCommande(db, { voyageId: voyage.id, userId: utilisateur.id, estAdmin })]);
+  const [l, commande, catalogue] = await Promise.all([
+    livreDe(db, voyage.id),
+    etatCommande(db, { voyageId: voyage.id, userId: utilisateur.id, estAdmin }),
+    catalogueEffectif(db),
+  ]);
+  const adminApp = adminEmails().includes(utilisateur.email.toLowerCase());
   const f = formatParId(l?.contenu.formatId ?? "portrait-21x28");
   const pages = l?.contenu.pages.length ?? 40;
   const commandes = commande.commandes.reduce((s, c) => s + c.exemplaires, 0);
   const demande = Number(q.exemplaires);
   const exemplaires = Number.isInteger(demande) && demande > 0 && demande <= 100 ? demande : Math.max(1, commandes);
   const tri = (Object.keys(TRIS) as Tri[]).includes(q.tri as Tri) ? (q.tri as Tri) : "score";
-  const { lignes, exclusions } = comparer(IMPRIMEURS, { pages, largeur: f.largeur, hauteur: f.hauteur }, exemplaires, tri);
+  const { lignes, exclusions } = comparer(catalogue, { pages, largeur: f.largeur, hauteur: f.hauteur }, exemplaires, tri);
   const choisi = f.imprimeurId ? `${f.imprimeurId}` : null;
   const lien = (o: { tri?: string; exemplaires?: number }) => {
     const u = new URLSearchParams({ tri: o.tri ?? tri, exemplaires: String(o.exemplaires ?? exemplaires) });
@@ -152,7 +162,7 @@ export default async function PageImprimeurs({ params, searchParams }: PageProps
                 </p>
                 <p className="text-encre-douce">{li.imprimeur.remarques}</p>
                 <p className="text-encre-douce">
-                  Relevé le {fmtDate.format(new Date(li.imprimeur.releve))}.{" "}
+                  Dernière vérification le {fmtDate.format(new Date(li.imprimeur.releve))}.{" "}
                   {[li.produit.prix.source, li.imprimeur.technique.source, li.imprimeur.note?.source]
                     .filter((x, j, t): x is string => !!x && t.indexOf(x) === j)
                     .map((u, j) => (
@@ -191,6 +201,8 @@ export default async function PageImprimeurs({ params, searchParams }: PageProps
           </ul>
         </section>
       ) : null}
+
+      {adminApp && iaActive() ? <MajIa slug={slug} /> : null}
 
       <p className="text-xs text-encre-douce">
         Prix TTC hors options, relevés sur les sites des imprimeurs ; devises converties au taux indicatif du {fmtDate.format(new Date(DATE_TAUX))}. « Non vérifié » :

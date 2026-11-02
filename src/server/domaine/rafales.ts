@@ -67,7 +67,7 @@ export async function detecterRafales(db: Db, voyageId: string) {
   await db.transaction(async (tx) => {
     // Photos qui ne sont plus dans aucune rafale.
     const sorties = lignes.filter((l) => l.rafaleId && !dansUnGroupe.has(l.id)).map((l) => l.id);
-    if (sorties.length) await tx.update(media).set({ rafaleId: null, choixRafale: false }).where(inArray(media.id, sorties));
+    if (sorties.length) await tx.update(media).set({ rafaleId: null, choixRafale: false, choixManuel: false }).where(inArray(media.id, sorties));
 
     for (const g of groupes) {
       const rafaleId = g[0].id;
@@ -98,9 +98,9 @@ export async function choisirDansRafale(db: Db, voyageId: string, mediaId: strin
   await db.transaction(async (tx) => {
     await tx
       .update(media)
-      .set({ choixRafale: false, dansSite: false, dansLivre: false })
+      .set({ choixRafale: false, choixManuel: false, dansSite: false, dansLivre: false })
       .where(and(eq(media.voyageId, voyageId), eq(media.rafaleId, m.rafaleId!)));
-    await tx.update(media).set({ choixRafale: true, dansSite: true, dansLivre: true }).where(eq(media.id, mediaId));
+    await tx.update(media).set({ choixRafale: true, choixManuel: true, dansSite: true, dansLivre: true }).where(eq(media.id, mediaId));
   });
 }
 

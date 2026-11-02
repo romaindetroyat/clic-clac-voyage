@@ -21,6 +21,7 @@ la logique, pas les vrais appareils, les vraies photos ni les vrais imprimeurs. 
 
 - [ ] « Proposer un découpage » donne des épisodes sensés ; les ajuster prend une soirée au plus.
 - [ ] Rafales : la meilleure photo est proposée ; changer d'avis en un clic.
+- [ ] Rafales hésitantes : « Départager avec l'IA » (organisateur) ; le choix et sa raison s'affichent ; un choix fait à la main n'est jamais modifié.
 - [ ] Retouches : ouvrir https://clic-clac-voyage.vercel.app/verification-rendu **sur chaque téléphone** : « identique » attendu.
 
 ## 4. Site (critère 4)
@@ -39,6 +40,7 @@ la logique, pas les vrais appareils, les vraies photos ni les vrais imprimeurs. 
 
 ## 6. Imprimeur et commande (critère 6)
 
+- [ ] Page Imprimeurs, section « Mettre à jour les fiches avec l'IA » (adresses de `ADMIN_EMAILS`) : lancer la vérification de l'imprimeur choisi, contrôler les sources proposées, valider ; la date de vérification change.
 - [ ] Vérifier sur le site de l'imprimeur choisi le **prix et le port** affichés « non vérifiés » dans le comparateur.
 - [ ] Chacun saisit ses exemplaires ; chacun voit ce qu'il doit et à qui.
 - [ ] Après la commande, noter « commande passée », puis les remboursements.
@@ -48,6 +50,7 @@ la logique, pas les vrais appareils, les vraies photos ni les vrais imprimeurs. 
 - [ ] Au bout d'un mois d'usage : onglet **Réglages** du voyage, section « Espace et coût » (visible par les adresses de `ADMIN_EMAILS`).
 - [ ] Recouper avec les tableaux de bord : Cloudflare (R2 → Metrics : stockage, opérations), Vercel (Usage), Neon (Usage).
 - [ ] Coût mensuel mesuré **≤ 5 €**.
+- [ ] IA : dépense du mois affichée dans « Espace et coût », recoupée avec https://console.anthropic.com (Usage) ; elle reste sous `IA_BUDGET_MENSUEL_EUR`.
 
 ## 8. Effacement (RGPD)
 
