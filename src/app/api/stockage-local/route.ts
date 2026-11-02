@@ -7,7 +7,7 @@ export async function PUT(req: NextRequest) {
   const s = getStockageLocal();
   const o = s.lireJeton(req.nextUrl.searchParams.get("j") ?? "");
   if (!o) return new NextResponse("Signature invalide ou expirée", { status: 403 });
-  const etag = await s.ecrire(o, Buffer.from(await req.arrayBuffer()));
+  const etag = await s.ecrireSigne(o, Buffer.from(await req.arrayBuffer()));
   return new NextResponse(null, { status: 200, headers: { ETag: etag } });
 }
 
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const s = getStockageLocal();
   const o = s.lireJeton(req.nextUrl.searchParams.get("j") ?? "");
   if (!o) return new NextResponse("Signature invalide ou expirée", { status: 403 });
-  const contenu = await s.lire(o);
+  const contenu = await s.lireSigne(o);
   if (!contenu) return new NextResponse("Introuvable", { status: 404 });
   const headers: Record<string, string> = { "Cache-Control": "private, max-age=3600" };
   if (o.op === "lecture" && o.nom) headers["Content-Disposition"] = `attachment; filename*=UTF-8''${encodeURIComponent(o.nom)}`;

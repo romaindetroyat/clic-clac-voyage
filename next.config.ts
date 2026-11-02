@@ -10,7 +10,15 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // L'app est presque entièrement authentifiée : rendu dynamique classique.
   cacheComponents: false,
-  serverExternalPackages: ["@electric-sql/pglite"],
+  serverExternalPackages: ["@electric-sql/pglite", "@myriaddreamin/typst-ts-node-compiler"],
+  // Polices embarquées dans les PDF du livre (lues sur le disque par Typst).
+  // Vercel tourne sous glibc : la variante musl du compilateur Typst (52 Mo) est inutile.
+  outputFileTracingExcludes: {
+    "/*": ["**/typst-ts-node-compiler-linux-x64-musl/**"],
+  },
+  outputFileTracingIncludes: {
+    "/api/voyages/\\[slug\\]/livre/impression": ["./polices/*.ttf"],
+  },
   poweredByHeader: false,
   turbopack: {
     rules: {

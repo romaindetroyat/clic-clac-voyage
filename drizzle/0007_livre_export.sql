@@ -1,0 +1,1 @@
+ALTER TABLE "livre" ADD COLUMN "export" jsonb;
