@@ -37,11 +37,35 @@ export type Element = {
   priseImposee?: string;
   /** Pas de nouvel essai avant cet instant (ms). */
   prochainEssai?: number;
+  /** Envoyer même en économie de données (choix explicite). */
+  forcer?: boolean;
 };
 
 const BASE = "clic-clac-envois";
 const MAGASIN = "elements";
 const ENVOIS_PARALLELES = 3;
+/** En mode économie de données, les fichiers plus gros attendent le Wi-Fi. */
+export const SEUIL_ECONOMIE = 5 * 1024 * 1024;
+const CLE_ECONOMIE = "clic-clac:economie-donnees";
+
+type Connexion = { type?: string; saveData?: boolean; addEventListener?: (t: string, f: () => void) => void };
+function connexion(): Connexion | undefined {
+  return typeof navigator !== "undefined" ? (navigator as Navigator & { connection?: Connexion }).connection : undefined;
+}
+
+/** Réseau mobile connu, ou économie demandée par le système ; sur iPhone le type de réseau est inconnu. */
+export function reseauMobile(): boolean {
+  const c = connexion();
+  return c?.type === "cellular" || c?.saveData === true;
+}
+
+export function economieDonnees(): boolean {
+  try {
+    return localStorage.getItem(CLE_ECONOMIE) === "1";
+  } catch {
+    return false;
+  }
+}
 const MORCEAUX_PARALLELES = 3;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
@@ -121,6 +145,7 @@ export class FileEnvoi {
     this.pret = typeof window === "undefined" ? Promise.resolve() : this.charger();
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => this.reprendreMaintenant());
+      connexion()?.addEventListener?.("change", () => this.pomper());
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") this.pomper();
       });
@@ -227,6 +252,37 @@ export class FileEnvoi {
     this.notifier();
   }
 
+  /** Active ou coupe l'économie de données (les gros fichiers attendent le Wi-Fi). */
+  regleEconomie(active: boolean) {
+    try {
+      localStorage.setItem(CLE_ECONOMIE, active ? "1" : "0");
+    } catch {
+      /* stockage indisponible */
+    }
+    this.notifier();
+    this.pomper();
+  }
+
+  /** Le fichier attend-il le Wi-Fi ? */
+  attendWifi(e: Element) {
+    if (e.forcer || e.taille <= SEUIL_ECONOMIE || !economieDonnees()) return false;
+    const c = connexion();
+    // Wi-Fi ou câble connus : on envoie. Type inconnu (iPhone) : on attend un choix explicite.
+    return !(c?.type === "wifi" || c?.type === "ethernet") || c?.saveData === true;
+  }
+
+  async envoyerMaintenant(id: string) {
+    const e = this.elements.get(id);
+    if (!e) return;
+    await this.sauver({ ...e, forcer: true, prochainEssai: 0 });
+    this.pomper();
+  }
+
+  async envoyerToutMaintenant() {
+    for (const e of this.liste()) if (this.attendWifi(e)) await this.sauver({ ...e, forcer: true, prochainEssai: 0 });
+    this.pomper();
+  }
+
   /** Le réseau revient : on n'attend pas la fin du délai entre deux essais. */
   reprendreMaintenant() {
     for (const e of this.elements.values()) if (e.etat === "attente") e.prochainEssai = 0;
@@ -238,7 +294,8 @@ export class FileEnvoi {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const maintenant = Date.now();
     const enAttente = this.liste().filter(
-      (e) => e.etat === "attente" && !this.enCours.has(e.id) && (e.prochainEssai ?? 0) <= maintenant,
+      (e) =>
+        e.etat === "attente" && !this.enCours.has(e.id) && (e.prochainEssai ?? 0) <= maintenant && !this.attendWifi(e),
     );
     for (const e of enAttente.slice(0, Math.max(0, ENVOIS_PARALLELES - this.enCours.size))) {
       this.enCours.add(e.id);

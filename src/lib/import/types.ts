@@ -13,7 +13,7 @@ export type Analyse = {
   longitude: number | null;
   appareil: { cle: string; libelle: string } | null;
   /** Versions web déjà calculées (WebP) : s ≈ 400 px, m ≈ 1200 px, l ≈ 2400 px, affiche pour les vidéos. */
-  versions: Partial<Record<"s" | "m" | "l" | "affiche", Blob>>;
+  versions: Partial<Record<"s" | "m" | "l" | "affiche" | "video", Blob>>;
   avertissement?: string;
 };
 

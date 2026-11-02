@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { fileEnvoi, type Element } from "@/lib/import/file-envoi";
+import { economieDonnees, fileEnvoi, type Element } from "@/lib/import/file-envoi";
 import { dateDepuisNom, estMediaWhatsapp, lireDiscussion } from "@/lib/import/whatsapp";
 import { extraireZip, lireTexteZip } from "@/lib/import/zip";
 import { fichiersDepuisDepot } from "./dossiers";
@@ -96,6 +96,13 @@ export function Importeur({ voyage }: { voyage: string }) {
     return s;
   }, [elements]);
 
+  const economie = useSyncExternalStore(
+    (cb) => file.abonner(cb),
+    () => economieDonnees(),
+    () => false,
+  );
+  const enAttenteWifi = elements.filter((e) => e.etat === "attente" && file.attendWifi(e)).length;
+
   const visibles = elements.filter((e) => e.etat !== "termine" && e.etat !== "doublon").slice(0, 200);
 
   return (
@@ -162,6 +169,22 @@ export function Importeur({ voyage }: { voyage: string }) {
         ) : null}
       </section>
 
+      <label className="flex items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={economie}
+          onChange={(e) => file.regleEconomie(e.target.checked)}
+        />
+        <span>
+          Économiser les données mobiles
+          <span className="block text-encre-douce">
+            Les petites photos partent tout de suite ; les vidéos et les gros fichiers attendent le Wi-Fi (ou votre feu
+            vert).
+          </span>
+        </span>
+      </label>
+
       {stats.total > 0 ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -192,6 +215,17 @@ export function Importeur({ voyage }: { voyage: string }) {
             </p>
           ) : null}
 
+          {enAttenteWifi > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-filet bg-papier-2 px-3 py-2 text-sm">
+              <span>
+                {enAttenteWifi} fichier{enAttenteWifi > 1 ? "s" : ""} en attente du Wi-Fi
+              </span>
+              <button type="button" className="lien" onClick={() => file.envoyerToutMaintenant()}>
+                Envoyer maintenant
+              </button>
+            </div>
+          ) : null}
+
           {visibles.length ? (
             <ul className="divide-y divide-filet border-y border-filet">
               {visibles.map((e) => (
@@ -199,7 +233,7 @@ export function Importeur({ voyage }: { voyage: string }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">{e.nom}</p>
                     <p className={`text-xs ${e.etat === "erreur" ? "text-danger" : "text-encre-douce"}`}>
-                      {LIBELLE[e.etat]}
+                      {e.etat === "attente" && file.attendWifi(e) ? "Attend le Wi-Fi" : LIBELLE[e.etat]}
                       {e.etat === "envoi" || e.etat === "analyse" ? ` · ${Math.round(e.progression * 100)} %` : ""} ·{" "}
                       {taille(e.taille)}
                       {e.erreur && e.etat !== "termine" ? ` · ${e.erreur}` : ""}

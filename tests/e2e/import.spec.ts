@@ -87,3 +87,56 @@ test("l'envoi reprend après une coupure réseau", async ({ page, context }) => 
   await page.reload();
   await expect(page.getByTestId("bilan-envoi")).toHaveText(/1 envoyé/, { timeout: 60_000 });
 });
+
+test("archive WhatsApp : dates de la discussion, puis l'original remplace la copie", async ({ page }) => {
+  test.setTimeout(120_000);
+  await seConnecterParCode(page, "romain@exemple.fr");
+  await page.goto("/voyages");
+  await page.getByLabel("Nom").fill("Groupe WhatsApp");
+  await page.getByRole("button", { name: "Créer le voyage" }).click();
+  await expect(page).toHaveURL(/\/voyages\/groupe-whatsapp$/);
+
+  await page.goto("/voyages/groupe-whatsapp/importer");
+  await page.getByTestId("choisir-fichiers").setInputFiles([F("Discussion WhatsApp avec Naxos.zip")]);
+  await expect(page.getByRole("status")).toContainText("2 photos ou vidéos WhatsApp ajoutées");
+  await attendreFinEnvoi(page, /^2 envoyés$/);
+
+  await page.goto("/voyages/groupe-whatsapp/photos");
+  await expect(page.getByTestId("compte-medias")).toHaveText(/^2 photos/);
+  // Dates tirées de la discussion : 3 et 4 août.
+  await expect(page.getByRole("heading", { name: /3 août 2026/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /4 août 2026/i })).toBeVisible();
+
+  // L'original arrive : il remplace la copie WhatsApp.
+  await page.goto("/voyages/groupe-whatsapp/importer");
+  await page.getByTestId("choisir-fichiers").setInputFiles([F("IMG_0001.jpg")]);
+  await attendreFinEnvoi(page, /^3 envoyés$/);
+  await page.goto("/voyages/groupe-whatsapp/photos");
+  await expect(page.getByTestId("compte-medias")).toHaveText(/^2 photos/);
+  await expect(page.getByRole("button", { name: "Photo IMG_0001.jpg" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Photo IMG-20260803-WA0001.jpg" })).toHaveCount(0);
+});
+
+test("vidéo : affiche et version allégée lisible", async ({ page }) => {
+  await seConnecterParCode(page, "romain@exemple.fr");
+  await page.goto("/voyages/import-naxos/photos");
+  await page.getByRole("button", { name: "Vidéo VID_0001.mp4" }).click();
+  const encodeur = await page.evaluate(() => typeof VideoEncoder !== "undefined");
+  test.info().annotations.push({ type: "encodeur", description: String(encodeur) });
+  await expect(page.locator("video, [role=dialog] img").first()).toBeVisible();
+});
+
+test("économie de données : les gros fichiers attendent le Wi-Fi ou un feu vert", async ({ page }) => {
+  await seConnecterParCode(page, "romain@exemple.fr");
+  await page.goto("/voyages/groupe-whatsapp/importer");
+  await page.getByLabel(/Économiser les données mobiles/).check();
+  const gros = ".data/e2e/VIDEO_LOURDE.mov";
+  writeFileSync(gros, randomBytes(6 * 1024 * 1024));
+  await page.getByTestId("choisir-fichiers").setInputFiles([gros, F("DSCF1234.jpg")]);
+  await expect(page.getByText("1 fichier en attente du Wi-Fi")).toBeVisible();
+  // La petite photo, elle, part tout de suite.
+  await attendreFinEnvoi(page, /^1 envoyé · 1 en cours$/);
+  await page.getByRole("button", { name: "Envoyer maintenant" }).click();
+  await attendreFinEnvoi(page, /^2 envoyés$/);
+  await page.getByLabel(/Économiser les données mobiles/).uncheck();
+});
