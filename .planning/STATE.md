@@ -4,6 +4,21 @@
 **Dernière action** : phase 1 en production (connexion Gmail vérifiée par Romain) ; phase 2, tranche 1 : envoi reprenable vers R2, analyse dans le navigateur, galerie, recalage d'horloge, dédoublonnage
 **Prochaine étape** : tester l'import réel sur téléphone, puis tranche 2 (partage Android et Raccourci iOS, WhatsApp, Google Photos, Drive, Dropbox, OneDrive, vidéo allégée, mode économie de données)
 
+## Phase 5 : où on en est
+
+| Exigence | État |
+|---|---|
+| LIV-01 modèle indépendant de l'imprimeur | ✅ `src/lib/livre` : pages → gabarit + cellules (photo, zoom, centre) + textes ; aucune coordonnée au pixel |
+| LIV-02 gabarits originaux 1 à 9 photos, gouttière 4 mm, fond blanc cassé ou noir | ✅ 15 gabarits photo + ouverture, texte, titre, page blanche ; ⏳ doubles pages (panoramiques) |
+| LIV-03 ouvertures d'épisode, légendes, commentaires en option, couverture, quatrième, dos | ✅ ; dos calculé (formule ou tableau d'imprimeur) ; ⏳ couverture complète (rabats, dos titré) avec les imprimeurs |
+| LIV-04 mise en page automatique, cible de pages, rythme | ✅ programmation dynamique par épisode (état = gabarit précédent, contre la monotonie) + sac à dos entre épisodes : cible exacte ; 1 000 photos < 1 s |
+| LIV-05 éditeur page par page | ✅ gabarit, échanger, remplacer, retirer, recadrer (zoom, position), textes, ajouter, supprimer, déplacer ; annulation |
+| LIV-06 contrôles en direct | ✅ dpi (alerte < 250, blocage < 150), texte trop long, trop près du bord ou du pli, pages (min, max, multiple), photo en double ou absente |
+| LIV-07 changement de format | ✅ les gabarits sont des fonctions de la zone utile : les cadres se recalculent, rien ne casse |
+| LIV-08 historique des versions | ✅ enregistrement automatique avec détection d'édition concurrente ; versions nommées, retour en arrière lui-même annulable (60 gardées) |
+| LIV-09 aperçu feuilletable | ✅ plein écran, clavier, balayage |
+| LIV-10, 11 export PDF fiable et conforme | ⏳ tranche 2 : Typst, images à 300 dpi par le moteur de retouche, exécution hors Vercel |
+
 ## Phase 4 : où on en est
 
 | Exigence | État |

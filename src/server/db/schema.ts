@@ -340,3 +340,35 @@ export const reaction = pgTable(
 );
 
 export type Episode = typeof episode.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* Livre photo                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Un livre par voyage : son contenu courant (voir src/lib/livre/modele.ts). */
+export const livre = pgTable("livre", {
+  voyageId: text("voyage_id")
+    .primaryKey()
+    .references(() => voyage.id, { onDelete: "cascade" }),
+  contenu: jsonb("contenu").$type<Record<string, unknown>>().notNull(),
+  // Incrémentée à chaque enregistrement : détecte deux éditions simultanées.
+  revision: integer("revision").notNull().default(1),
+  modifiePar: text("modifie_par").references(() => user.id, { onDelete: "set null" }),
+  ...horodatage,
+});
+
+/** Historique des versions du livre, pour revenir en arrière. */
+export const versionLivre = pgTable(
+  "version_livre",
+  {
+    id: text("id").primaryKey(),
+    voyageId: text("voyage_id")
+      .notNull()
+      .references(() => voyage.id, { onDelete: "cascade" }),
+    libelle: text("libelle").notNull(),
+    contenu: jsonb("contenu").$type<Record<string, unknown>>().notNull(),
+    creePar: text("cree_par").references(() => user.id, { onDelete: "set null" }),
+    ...horodatage,
+  },
+  (t) => [index("version_livre_voyage_idx").on(t.voyageId, t.createdAt)],
+);
