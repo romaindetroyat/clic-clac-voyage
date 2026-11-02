@@ -122,7 +122,16 @@ export function Galerie({ medias }: { medias: MediaGalerie[] }) {
             </button>
           </div>
           <div className="flex min-h-0 flex-1 items-center justify-center p-2">
-            {ouvert.moyenne ? (
+            {ouvert.type === "video" && ouvert.video ? (
+              <video
+                src={ouvert.video}
+                poster={ouvert.moyenne ?? undefined}
+                controls
+                playsInline
+                className="max-h-full max-w-full"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : ouvert.moyenne ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={ouvert.moyenne} alt="" className="max-h-full max-w-full object-contain" />
             ) : (

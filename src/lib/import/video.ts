@@ -3,6 +3,7 @@
  * La version allégée (720p) sera produite plus tard (Mediabunny, ou tâche par lots en secours).
  */
 import { empreinteSha256, versionWeb } from "./analyse";
+import { versionLegere } from "./video-legere";
 import { mimeDeFichier, TAILLES_VERSIONS, type Analyse } from "./types";
 
 const EPOQUE_MP4 = Date.UTC(1904, 0, 1);
@@ -64,7 +65,7 @@ function aller(v: HTMLVideoElement, t: number) {
 }
 
 export async function analyserVideo(f: File, progression?: (f: number) => void): Promise<Analyse> {
-  const sha256 = await empreinteSha256(f, (x) => progression?.(x * 0.8));
+  const sha256 = await empreinteSha256(f, (x) => progression?.(x * 0.3));
   const date = await dateMp4(f);
   const base: Analyse = {
     type: "video",
@@ -96,6 +97,12 @@ export async function analyserVideo(f: File, progression?: (f: number) => void):
     URL.revokeObjectURL(v.src);
   } catch {
     base.avertissement = "Aperçu de la vidéo impossible sur cet appareil : l'original sera conservé.";
+  }
+  try {
+    const legere = await versionLegere(f, base.largeur, base.hauteur, (p) => progression?.(0.3 + p * 0.7));
+    if (legere && legere.size < f.size) base.versions.video = legere;
+  } catch {
+    // Encodeur indisponible ou format non pris en charge : version allégée produite plus tard.
   }
   progression?.(1);
   return base;

@@ -279,6 +279,8 @@ export type MediaGalerie = {
   copieCompressee: boolean;
   vignette: string | null;
   moyenne: string | null;
+  /** Vidéo allégée lisible dans le navigateur. */
+  video: string | null;
 };
 
 /** Médias visibles du voyage, dans l'ordre chronologique corrigé, avec des URL de lecture à durée limitée. */
@@ -302,6 +304,7 @@ export async function galerie(db: Db, stockage: Stockage, voyageId: string): Pro
     })),
   );
   const DUREE = 6 * 3600;
+  const lire = (cle: string | undefined) => (cle ? stockage.urlLecture(cle, DUREE) : Promise.resolve(null));
   return Promise.all(
     tries.map(async (l) => ({
       id: l.id,
@@ -313,8 +316,9 @@ export async function galerie(db: Db, stockage: Stockage, voyageId: string): Pro
       auteur: l.auteurId ? (nomAuteur.get(l.auteurId) ?? null) : null,
       appareil: l.appareilId ? (parApp.get(l.appareilId)?.libelle ?? null) : null,
       copieCompressee: l.copieCompressee,
-      vignette: l.versions.s ? await stockage.urlLecture(l.versions.s, DUREE) : null,
-      moyenne: (l.versions.m ?? l.versions.l) ? await stockage.urlLecture((l.versions.m ?? l.versions.l)!, DUREE) : null,
+      vignette: await lire(l.versions.s),
+      moyenne: await lire(l.versions.m ?? l.versions.l ?? l.versions.affiche),
+      video: await lire(l.versions.video),
     })),
   );
 }

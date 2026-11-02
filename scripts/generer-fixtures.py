@@ -37,3 +37,18 @@ scene(3).save(f"{OUT}/DSCF1234.jpg", quality=90, exif=exif("2026:08:03 13:00:00"
 # La même photo que IMG_0001, passée par WhatsApp : réduite, recompressée, sans EXIF.
 r1.resize((800, 600), Image.LANCZOS).save(f"{OUT}/IMG-20260803-WA0001.jpg", quality=60)
 print("ok")
+
+# Une discussion WhatsApp exportée (Android) : la copie de IMG_0001 et une autre photo.
+import zipfile, io
+autre = scene(4, 1200, 1600)
+tampon = io.BytesIO()
+autre.save(tampon, "JPEG", quality=60)
+with zipfile.ZipFile(f"{OUT}/Discussion WhatsApp avec Naxos.zip", "w") as z:
+    z.writestr("_chat.txt", "\n".join([
+        "03/08/2026 14:01 - Paul: IMG-20260803-WA0001.jpg (fichier joint)",
+        "03/08/2026 14:02 - Paul: Magnifique !",
+        "04/08/2026 09:15 - Léa: IMG-20260804-WA0002.jpg (fichier joint)",
+    ]))
+    z.write(f"{OUT}/IMG-20260803-WA0001.jpg", "IMG-20260803-WA0001.jpg")
+    z.writestr("IMG-20260804-WA0002.jpg", tampon.getvalue())
+print("zip ok")
