@@ -17,7 +17,10 @@
 | LIV-07 changement de format | ✅ les gabarits sont des fonctions de la zone utile : les cadres se recalculent, rien ne casse |
 | LIV-08 historique des versions | ✅ enregistrement automatique avec détection d'édition concurrente ; versions nommées, retour en arrière lui-même annulable (60 gardées) |
 | LIV-09 aperçu feuilletable | ✅ plein écran, clavier, balayage |
-| LIV-10, 11 export PDF fiable et conforme | ⏳ tranche 2 : Typst, images à 300 dpi par le moteur de retouche, exécution hors Vercel |
+| LIV-10 export PDF fiable, progression et reprise | ✅ photos préparées dans le navigateur de l'administrateur avec le moteur de retouche de l'écran (rendu identique), 300 dpi sans agrandir, envoyées sur R2 ; clé = empreinte (photo, retouche, recadrage, taille) : une préparation interrompue reprend où elle s'était arrêtée ; assemblage dans une fonction Vercel (300 s) |
+| LIV-11 export conforme | ✅ générique : intérieur + couverture (quatrième, dos, première) séparés, RVB sRGB, fonds perdus 3 mm, TrimBox et BleedBox, polices EB Garamond et Inter intégrées (OFL, dans `polices/`), JPEG intégrés sans réencodage ; ⏳ PDF/X, CMJN, nommage et rabats propres à chaque imprimeur en phase 6 |
+
+**Spike PDF (2 novembre 2026)** : Typst 0.14 (binding npm 0.7.0) garde chaque image décodée en mémoire : 6,7 Go pour 200 pages réelles, intenable. Architecture retenue : Typst compose le fond et les textes (PDF de quelques centaines de Ko), pdf-lib pose ensuite les JPEG tels quels et les boîtes d'impression. Mesuré : 200 pages distinctes, PDF de 628 Mo, **5 s et 1,4 Go de mémoire au pic** (moitié moins avec des photos de poids réel). Tient dans une fonction Vercel Hobby (2 Go) : pas besoin de GitHub Actions ni de jeton supplémentaire. Le binding n'accepte pas `bleed` : page = format + 2 × fond perdu, boîtes posées par pdf-lib.
 
 ## Phase 4 : où on en est
 

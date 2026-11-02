@@ -1,5 +1,5 @@
 {
-  "id": "dbb6e3cd-144c-490c-85ba-3055ecc54e2a",
+  "id": "7bccd597-2b6e-4305-81d4-e47841b54e3a",
   "prevId": "a5b26bc0-d151-4278-a412-ac0063d046d6",
   "version": "7",
   "dialect": "postgresql",
@@ -735,6 +735,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "export": {
+          "name": "export",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "modifie_par": {
           "name": "modifie_par",

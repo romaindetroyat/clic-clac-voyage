@@ -8,6 +8,7 @@ import { epaisseurDos, FORMATS, formatParId, pagesValides } from "@/lib/livre/fo
 import { GABARITS, gabaritParId, geometriePage } from "@/lib/livre/gabarits";
 import { legendeAuto, mettreEnPage } from "@/lib/livre/mise-en-page";
 import { nouvelId, RYTHMES, type Cellule, type EpisodeLivre, type Livre, type MediaLivre, type PageLivre } from "@/lib/livre/modele";
+import { ExportPdf } from "./export-pdf";
 import { Feuilleter } from "./feuilleter";
 
 export type VersionResume = { id: string; libelle: string; le: string; auteur: string | null; pages: number };
@@ -76,6 +77,10 @@ export function EditeurLivre({
 }) {
   const [livre, setLivreBrut] = useState<Livre | null>(initial);
   const [revision, setRevision] = useState(revisionInitiale);
+  const revisionRef = useRef(revisionInitiale);
+  useEffect(() => {
+    revisionRef.current = revision;
+  }, [revision]);
   const [historique, setHistorique] = useState<Livre[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [echange, setEchange] = useState<{ page: number; cellule: number } | null>(null);
@@ -84,6 +89,7 @@ export function EditeurLivre({
   const [etat, setEtat] = useState<Etat>(null);
   const [rapport, setRapport] = useState<string | null>(null);
   const [feuilleter, setFeuilleter] = useState(false);
+  const [exporter, setExporter] = useState(false);
   const [voirProblemes, setVoirProblemes] = useState(false);
   const [reglages, setReglages] = useState<Livre["options"] & { formatId: string }>(
     initial ? { ...initial.options, formatId: initial.formatId } : { formatId: FORMATS[0].id, ciblePages: 40, rythme: "equilibre", fond: "blanc", legendes: true, commentaires: false },
@@ -136,14 +142,26 @@ export function EditeurLivre({
     setLivreBrut(precedent);
   }
 
+  /** Enregistre tout de suite ce qui ne l'est pas encore (avant un export). */
+  async function enregistrerMaintenant() {
+    if (!courant.current || !aEnregistrer.current) return;
+    aEnregistrer.current = false;
+    const r = await appeler<{ revision: number }>(slug, { action: "enregistrer", contenu: courant.current, revision: revisionRef.current });
+    revisionRef.current = r.revision;
+    setRevision(r.revision);
+    setEtat({ texte: "Enregistré" });
+  }
+
   // Enregistrement automatique, une seconde après la dernière modification.
   useEffect(() => {
     if (!livre || !aEnregistrer.current) return;
     const t = setTimeout(async () => {
+      if (!aEnregistrer.current) return; // déjà enregistré (avant un export, par exemple)
       aEnregistrer.current = false;
       setEtat({ texte: "Enregistrement…" });
       try {
-        const r = await appeler<{ revision: number }>(slug, { action: "enregistrer", contenu: livre, revision });
+        const r = await appeler<{ revision: number }>(slug, { action: "enregistrer", contenu: livre, revision: revisionRef.current });
+        revisionRef.current = r.revision;
         setRevision(r.revision);
         setEtat({ texte: "Enregistré" });
       } catch (e) {
@@ -444,6 +462,9 @@ export function EditeurLivre({
             <button type="button" className="bouton-discret" onClick={enregistrerVersion}>
               Enregistrer une version
             </button>
+            <button type="button" className="bouton-discret" onClick={() => setExporter(true)}>
+              Exporter le PDF
+            </button>
             <span role="status" className={`ml-auto text-sm ${etat?.erreur ? "text-danger" : "text-encre-douce"}`}>
               {echange ? "Touchez la photo à échanger…" : etat?.texte}
             </span>
@@ -725,6 +746,10 @@ export function EditeurLivre({
             ))}
           </div>
         </div>
+      ) : null}
+
+      {exporter && livre ? (
+        <ExportPdf slug={slug} revision={revision} enregistrer={enregistrerMaintenant} bloquants={bloquants.length} onFermer={() => setExporter(false)} />
       ) : null}
 
       {feuilleter && livre ? <Feuilleter livre={livre} format={format} medias={parId} onFermer={() => setFeuilleter(false)} fond={FONDS[livre.options.fond].fond} /> : null}

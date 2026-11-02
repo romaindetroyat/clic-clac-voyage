@@ -44,7 +44,14 @@ Les e-mails partent de ton adresse, avec « Clic-Clac Voyage » comme nom d'exp�
 - CORS : origines de l'app, méthodes `GET, PUT, HEAD`, en-têtes `*`, en-tête exposé `ETag` (indispensable à l'envoi en morceaux).
 - Règle de cycle de vie : « Abort incomplete multipart uploads after 7 days ».
 
-## 5. Développement local
+## 5. Export PDF du livre
+
+- Rien à configurer : l'assemblage tourne dans une fonction Vercel (`/api/voyages/[slug]/livre/impression`, 300 s au plus, 2 Go sur Hobby), avec le compilateur Typst natif et les polices du dossier `polices/`.
+- Les photos à 300 dpi sont préparées dans le navigateur de l'administrateur puis déposées sous `voyages/<id>/livre/images/` ; les PDF sous `voyages/<id>/livre/export/` (le précédent est supprimé à chaque nouvel export).
+- Les images préparées ne sont pas effacées automatiquement (elles servent de cache pour la reprise). Une règle de cycle de vie R2 sur le préfixe `voyages/` + `livre/images/` peut les supprimer au bout de 90 jours si l'espace devient un sujet.
+- Limite connue : au-delà d'environ 250 pages de photos très lourdes, la mémoire de la fonction (2 Go) pourrait ne plus suffire ; il faudrait alors découper l'assemblage.
+
+## 6. Développement local
 
 ```bash
 pnpm install

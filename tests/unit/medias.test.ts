@@ -27,7 +27,7 @@ const SECRET = "secret-de-test-secret-de-test-secret-de-test";
 async function put(s: StockageLocal, url: string, contenu: Buffer) {
   const o = s.lireJeton(new URL(url).searchParams.get("j")!);
   if (!o) throw new Error("URL invalide");
-  return s.ecrire(o, contenu);
+  return s.ecrireSigne(o, contenu);
 }
 
 function decl(d: Partial<Declaration> & { sha256: string; taille: number }): Declaration {

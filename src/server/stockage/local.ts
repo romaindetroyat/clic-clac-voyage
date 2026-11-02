@@ -104,8 +104,19 @@ export class StockageLocal implements Stockage {
     await Promise.all(clesASupprimer.map((c) => rm(this.chemin(c), { force: true })));
   }
 
+  async lire(cle: string) {
+    return new Uint8Array(await readFile(this.chemin(cle)));
+  }
+
+  // Le type MIME ne sert pas en local : les fichiers sont servis selon leur usage.
+  async ecrire(cle: string, contenu: Uint8Array) {
+    const cible = this.chemin(cle);
+    await mkdir(path.dirname(cible), { recursive: true });
+    await writeFile(cible, contenu);
+  }
+
   /* Utilisé par la route /api/stockage-local */
-  async ecrire(o: OperationLocale, contenu: Buffer): Promise<string> {
+  async ecrireSigne(o: OperationLocale, contenu: Buffer): Promise<string> {
     if (o.op === "envoi") {
       const cible = this.chemin(o.cle);
       await mkdir(path.dirname(cible), { recursive: true });
@@ -120,7 +131,7 @@ export class StockageLocal implements Stockage {
     return etag(contenu);
   }
 
-  async lire(o: OperationLocale): Promise<Buffer | null> {
+  async lireSigne(o: OperationLocale): Promise<Buffer | null> {
     if (o.op !== "lecture") return null;
     return readFile(this.chemin(o.cle)).catch(() => null);
   }

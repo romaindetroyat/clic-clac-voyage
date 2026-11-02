@@ -353,6 +353,8 @@ export const livre = pgTable("livre", {
   contenu: jsonb("contenu").$type<Record<string, unknown>>().notNull(),
   // Incrémentée à chaque enregistrement : détecte deux éditions simultanées.
   revision: integer("revision").notNull().default(1),
+  // Dernier export PDF : clés de stockage, révision exportée, contrôles.
+  export: jsonb("export").$type<Record<string, unknown>>(),
   modifiePar: text("modifie_par").references(() => user.id, { onDelete: "set null" }),
   ...horodatage,
 });

@@ -7,14 +7,11 @@ import { styleImage } from "@/lib/livre/cadrage";
 import { TAILLES } from "@/lib/livre/controles";
 import type { Format } from "@/lib/livre/formats";
 import { geometriePage, type CadreTexte } from "@/lib/livre/gabarits";
-import type { MediaLivre, PageLivre } from "@/lib/livre/modele";
+import { FONDS, type MediaLivre, type PageLivre } from "@/lib/livre/modele";
 
 const PT = 0.3528;
 
-export const FONDS = {
-  blanc: { fond: "#fbf9f5", encre: "#1d1b18", douce: "#6f675d" },
-  noir: { fond: "#151413", encre: "#f1ece4", douce: "#a49b8f" },
-} as const;
+export { FONDS };
 
 function texteDe(p: PageLivre, t: CadreTexte, numero: number): string {
   switch (t.role) {

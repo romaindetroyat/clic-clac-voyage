@@ -22,6 +22,10 @@ export interface Stockage {
    * le navigateur et le service worker peuvent la garder en cache.
    */
   urlLectureStable(cle: string): Promise<string>;
+  /** Contenu d'un objet (côté serveur : assemblage du PDF). */
+  lire(cle: string): Promise<Uint8Array>;
+  /** Écrit un objet en une fois (côté serveur ; jusqu'à quelques centaines de Mo). */
+  ecrire(cle: string, contenu: Uint8Array, typeMime: string): Promise<void>;
   /** Taille de l'objet, ou null s'il n'existe pas. */
   taille(cle: string): Promise<number | null>;
   supprimer(cles: string[]): Promise<void>;

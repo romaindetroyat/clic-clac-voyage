@@ -73,3 +73,9 @@ export function nouvelId(): string {
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
+
+/** Couleurs des pages : identiques à l'écran et dans le PDF. */
+export const FONDS = {
+  blanc: { fond: "#fbf9f5", encre: "#1d1b18", douce: "#6f675d" },
+  noir: { fond: "#151413", encre: "#f1ece4", douce: "#a49b8f" },
+} as const;

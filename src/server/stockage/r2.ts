@@ -95,6 +95,19 @@ export class StockageR2 implements Stockage {
     return this.signer(this.url(cle), "GET", DUREE_URL_STABLE, undefined, debutDuJourUtc());
   }
 
+  async lire(cle: string) {
+    const rep = await this.appel(this.url(cle));
+    return new Uint8Array(await rep.arrayBuffer());
+  }
+
+  async ecrire(cle: string, contenu: Uint8Array, typeMime: string) {
+    await this.appel(this.url(cle), {
+      method: "PUT",
+      body: contenu as Uint8Array<ArrayBuffer>,
+      headers: { "content-type": typeMime },
+    });
+  }
+
   async taille(cle: string) {
     const rep = await this.client.fetch(this.url(cle).toString(), { method: "HEAD" });
     if (rep.status === 404) return null;
