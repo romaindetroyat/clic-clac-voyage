@@ -107,6 +107,8 @@ export const voyage = pgTable("voyage", {
   dateFin: date("date_fin"),
   // Fuseau par défaut des photos sans fuseau dans leur EXIF (IANA, ex. « Europe/Athens »).
   fuseau: text("fuseau").notNull().default("Europe/Paris"),
+  // Configuration du site (thème, sections…) : voir src/lib/site/config.ts.
+  site: jsonb("site").$type<Record<string, unknown>>(),
   creePar: text("cree_par").references(() => user.id, { onDelete: "set null" }),
   ...horodatage,
 });
@@ -203,6 +205,8 @@ export const episode = pgTable(
     recit: text("recit"),
     debut: timestamp("debut", { withTimezone: true }),
     fin: timestamp("fin", { withTimezone: true }),
+    // Présentation dans le site : mosaïque, plein écran, défilement, alterné, photo vedette.
+    presentation: text("presentation").notNull().default("mosaique"),
     ...horodatage,
   },
   (t) => [index("episode_voyage_idx").on(t.voyageId, t.ordre)],
@@ -290,6 +294,8 @@ export const media = pgTable(
     legende: text("legende"),
     dansSite: boolean("dans_site").notNull().default(true),
     dansLivre: boolean("dans_livre").notNull().default(true),
+    // Mise en avant dans le site (photo vedette d'un épisode, plus grande dans les mosaïques).
+    vedette: boolean("vedette").notNull().default(false),
     ...horodatage,
   },
   (t) => [

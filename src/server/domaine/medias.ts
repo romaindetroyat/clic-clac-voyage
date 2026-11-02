@@ -292,6 +292,8 @@ export type MediaGalerie = {
   legende: string | null;
   dansSite: boolean;
   dansLivre: boolean;
+  /** Mise en avant dans le site. */
+  vedette: boolean;
 };
 
 /** Médias visibles du voyage, dans l'ordre chronologique corrigé, avec des URL de lecture à durée limitée. */
@@ -343,6 +345,7 @@ export async function galerie(
       legende: l.legende,
       dansSite: l.dansSite,
       dansLivre: l.dansLivre,
+      vedette: l.vedette,
     })),
   );
 }

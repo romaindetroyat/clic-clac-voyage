@@ -61,3 +61,23 @@ base.filter(ImageFilter.GaussianBlur(6)).save(f"{OUT}/RAFALE_1.jpg", quality=90,
 base.save(f"{OUT}/RAFALE_2.jpg", quality=90, exif=ex(1))
 ImageEnhance.Brightness(base).enhance(2.2).save(f"{OUT}/RAFALE_3.jpg", quality=90, exif=ex(2))
 print("rafale ok")
+
+# Deux photos géolocalisées (positions précises fictives) sur deux îles et deux jours :
+# le site ne doit en montrer qu'une position arrondie (environ 10 km).
+def exif_gps(date, lat, lon):
+    from PIL.TiffImagePlugin import IFDRational
+    e = exif(date, "+03:00", "Apple", "iPhone 15", "A1")
+    def dms(x):
+        x = abs(x)
+        d = int(x); m = int((x - d) * 60); s = round(((x - d) * 60 - m) * 60, 4)
+        return (IFDRational(d, 1), IFDRational(m, 1), IFDRational(int(s * 10000), 10000))
+    g = e.get_ifd(0x8825)
+    g[1] = "N" if lat >= 0 else "S"
+    g[2] = dms(lat)
+    g[3] = "E" if lon >= 0 else "W"
+    g[4] = dms(lon)
+    return e
+
+scene(6).save(f"{OUT}/NAXOS_GPS.jpg", quality=90, exif=exif_gps("2026:08:06 10:00:00", 37.10512, 25.37683))
+scene(7).save(f"{OUT}/PAROS_GPS.jpg", quality=90, exif=exif_gps("2026:08:09 11:00:00", 37.08533, 25.14981))
+print("gps ok")

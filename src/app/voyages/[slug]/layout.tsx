@@ -20,6 +20,7 @@ export default async function LayoutVoyage({ children, params }: LayoutProps<"/v
     { href: `${base}/participants`, libelle: "Participants" },
     ...(estAdmin
       ? [
+          { href: `${base}/site`, libelle: "Site" },
           { href: `${base}/partage`, libelle: "Partage" },
           { href: `${base}/reglages`, libelle: "Réglages" },
         ]

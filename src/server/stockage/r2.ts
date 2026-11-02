@@ -1,5 +1,5 @@
 import { AwsClient } from "aws4fetch";
-import type { Morceau, Stockage } from "./types";
+import { debutDuJourUtc, DUREE_URL_STABLE, type Morceau, type Stockage } from "./types";
 
 /** Cloudflare R2 par son API compatible S3, signée avec aws4fetch (léger, sans SDK AWS). */
 export class StockageR2 implements Stockage {
@@ -24,9 +24,10 @@ export class StockageR2 implements Stockage {
     return u;
   }
 
-  private async signer(u: URL, method: string, duree = 3600, headers?: Record<string, string>) {
+  private async signer(u: URL, method: string, duree = 3600, headers?: Record<string, string>, instant?: Date) {
     u.searchParams.set("X-Amz-Expires", String(duree));
-    const req = await this.client.sign(u.toString(), { method, headers, aws: { signQuery: true } });
+    const datetime = instant?.toISOString().replace(/[:-]|\.\d{3}/g, "");
+    const req = await this.client.sign(u.toString(), { method, headers, aws: { signQuery: true, datetime } });
     return req.url;
   }
 
@@ -88,6 +89,10 @@ export class StockageR2 implements Stockage {
       params["response-content-disposition"] = `attachment; filename*=UTF-8''${encodeURIComponent(nomTelechargement)}`;
     }
     return this.signer(this.url(cle, params), "GET", dureeSecondes);
+  }
+
+  urlLectureStable(cle: string) {
+    return this.signer(this.url(cle), "GET", DUREE_URL_STABLE, undefined, debutDuJourUtc());
   }
 
   async taille(cle: string) {
