@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { unzipSync, strFromU8 } from "fflate";
 import { expect, test } from "@playwright/test";
 import { seConnecterParCode } from "./outils";
@@ -33,7 +34,11 @@ test("site du voyage : réglages, lien secret, carte arrondie, visionneuse, hors
   await page.getByRole("radio", { name: /Mer et îles/ }).click();
   await page.getByLabel("Sous-titre").fill("Deux semaines dans les Cyclades");
   await page.getByLabel("Texte de présentation").fill("Un été entre amis, d’île en île.");
-  await page.getByRole("checkbox", { name: "Galerie complète" }).check();
+  // La barre « Enregistrer » collée en bas peut recouvrir la case : on la coche au clavier.
+  const galerie = page.getByRole("checkbox", { name: "Galerie complète" });
+  await galerie.focus();
+  await page.keyboard.press("Space");
+  await expect(galerie).toBeChecked();
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByText("Réglages enregistrés.")).toBeVisible();
   await page.getByLabel(/Présentation de « .*6 août/).selectOption("plein-ecran");
@@ -124,4 +129,21 @@ test("site du voyage : réglages, lien secret, carte arrondie, visionneuse, hors
   expect(medias.length).toBeGreaterThanOrEqual(8);
   for (const n of medias) expect(index.includes(n) || n.endsWith("-s.webp")).toBe(true);
   expect(Object.keys(archive).some((n) => n.startsWith("polices/"))).toBe(true);
+
+  // L'archive décompressée s'ouvre sans serveur : images affichées, visionneuse active.
+  const dossier = info.outputPath("archive");
+  for (const [nom, octets] of Object.entries(archive)) {
+    mkdirSync(path.dirname(path.join(dossier, nom)), { recursive: true });
+    writeFileSync(path.join(dossier, nom), octets);
+  }
+  const hl = await admin.newPage();
+  await hl.goto(pathToFileURL(path.join(dossier, "index.html")).href);
+  await expect(hl.getByRole("heading", { level: 1, name: "Site Cyclades" })).toBeVisible();
+  const largeurs = await hl.locator("#episode-1 img").evaluateAll((imgs) =>
+    Promise.all((imgs as HTMLImageElement[]).map((i) => ((i.loading = "eager"), i.decode().then(() => i.naturalWidth, () => 0)))),
+  );
+  expect(largeurs.every((w) => w > 0)).toBe(true);
+  await hl.locator("#episode-1 [data-media]").first().click();
+  await expect(hl.getByRole("dialog", { name: "Visionneuse" }).getByText("1 / 3")).toBeVisible();
+  await admin.close();
 });

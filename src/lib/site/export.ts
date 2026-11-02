@@ -20,20 +20,24 @@ const encodeur = new TextEncoder();
 /** Styles de la page courante (thèmes du site compris), polices rapatriées dans l'archive. */
 async function stylesEtPolices(): Promise<{ css: string; polices: { chemin: string; url: string }[] }> {
   let css = "";
-  for (const feuille of [...document.styleSheets]) {
-    try {
-      css += [...feuille.cssRules].map((r) => r.cssText).join("\n") + "\n";
-    } catch {
-      /* feuille d'une autre origine : ignorée */
-    }
-  }
   const polices = new Map<string, string>();
-  css = css.replace(/url\(\s*["']?([^"')]+\.(?:woff2?|ttf|otf))["']?\s*\)/g, (_, url: string) => {
-    const absolu = new URL(url, location.href).href;
-    const chemin = `polices/${absolu.split("/").pop()}`;
-    polices.set(chemin, absolu);
-    return `url("${chemin}")`;
-  });
+  for (const feuille of [...document.styleSheets]) {
+    let texte: string;
+    try {
+      texte = [...feuille.cssRules].map((r) => r.cssText).join("\n");
+    } catch {
+      continue; // feuille d'une autre origine : ignorée
+    }
+    // Les adresses des polices sont relatives à la feuille de style, pas à la page.
+    const base = feuille.href ?? location.href;
+    css +=
+      texte.replace(/url\(\s*["']?([^"')]+\.(?:woff2?|ttf|otf))["']?\s*\)/g, (_, url: string) => {
+        const absolu = new URL(url, base).href;
+        const chemin = `polices/${absolu.split("/").pop()}`;
+        polices.set(chemin, absolu);
+        return `url("${chemin}")`;
+      }) + "\n";
+  }
   return { css, polices: [...polices].map(([chemin, url]) => ({ chemin, url })) };
 }
 

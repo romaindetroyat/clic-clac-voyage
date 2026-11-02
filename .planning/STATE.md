@@ -4,6 +4,23 @@
 **Dernière action** : phase 1 en production (connexion Gmail vérifiée par Romain) ; phase 2, tranche 1 : envoi reprenable vers R2, analyse dans le navigateur, galerie, recalage d'horloge, dédoublonnage
 **Prochaine étape** : tester l'import réel sur téléphone, puis tranche 2 (partage Android et Raccourci iOS, WhatsApp, Google Photos, Drive, Dropbox, OneDrive, vidéo allégée, mode économie de données)
 
+## Phase 4 : où on en est
+
+| Exigence | État |
+|---|---|
+| SITE-01 adresse `<APP_URL>/v/<slug>`, lien secret révocable, mot de passe en option | ✅ les membres connectés voient aussi le site sans lien |
+| SITE-02 téléphone d'abord, soigné sur ordinateur | ✅ ; ⏳ note Lighthouse à mesurer en production |
+| SITE-03 six thèmes | ✅ mer et îles, montagne, ville et culture, désert ou safari, road-trip, neutre élégant (contrastes WCAG AA testés) |
+| SITE-04 palette, polices, couverture | ✅ six paires de polices, fond et accent personnalisables (encre recalculée pour rester lisible) |
+| SITE-05 sections activables et réordonnables | ✅ couverture, présentation, carte, épisodes, galerie, chiffres, participants, mot de la fin |
+| SITE-06 présentations par épisode, mise en avant | ✅ mosaïque, plein écran, défilement, alterné, photo vedette ; « Mise en avant » dans la visionneuse de l'app |
+| SITE-07 visionneuse plein écran, affichage réglable | ✅ balayage, clavier, bouton retour ; légendes, auteurs, commentaires, réactions affichables ou non |
+| SITE-08 carte au niveau ville | ✅ une étape par épisode (médiane arrondie au dixième de degré), tracé SVG sans fond de carte |
+| SITE-09 GPS précis jamais public | ✅ testé : HTML, JSON, images servies (WebP sans EXIF), export ; jamais l'original |
+| SITE-10 hors ligne | ✅ service worker : pages et images gardées ; bouton « Garder ce site pour le lire hors ligne » ; manifeste propre au site ; testé en E2E réseau coupé |
+| SITE-11 journal en direct | ✅ pendant les dates du voyage (ou forcé) : plus récent d'abord, rafraîchi toutes les 2 min |
+| SITE-12 export .zip autonome | ✅ fabriqué dans le navigateur de l'administrateur (pas de GitHub Actions : ni coût ni secret) ; photos en 1 200 px, vidéos en option ; testé ouvert en file:// |
+
 ## Phase 3 : où on en est
 
 | Exigence | État |

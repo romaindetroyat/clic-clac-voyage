@@ -4,8 +4,8 @@
 
 - [~] **Phase 1 : Fondations** (code fait, déploiement en attente)
 - [ ] **Phase 2 : Import et stockage**
-- [ ] **Phase 3 : Tri et récit**
-- [ ] **Phase 4 : Site du voyage**
+- [x] **Phase 3 : Tri et récit**
+- [x] **Phase 4 : Site du voyage**
 - [ ] **Phase 5 : Livre photo**
 - [ ] **Phase 6 : Imprimeurs et commandes**
 - [ ] **Phase 7 : Finition sur le vrai voyage**
