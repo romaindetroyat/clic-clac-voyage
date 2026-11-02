@@ -1,6 +1,6 @@
 # État du projet
 
-**Phase en cours** : 3, Tri et récit (tranche 1 : épisodes, sélection, échanges)
+**Phase en cours** : 3, Tri et récit (tranches 1 à 3 livrées)
 **Dernière action** : phase 1 en production (connexion Gmail vérifiée par Romain) ; phase 2, tranche 1 : envoi reprenable vers R2, analyse dans le navigateur, galerie, recalage d'horloge, dédoublonnage
 **Prochaine étape** : tester l'import réel sur téléphone, puis tranche 2 (partage Android et Raccourci iOS, WhatsApp, Google Photos, Drive, Dropbox, OneDrive, vidéo allégée, mode économie de données)
 
@@ -14,7 +14,8 @@
 | REC-09 galeries fluides | ✅ virtualisées ; visionneuse avec balayage et clavier |
 | REC-05 rafales et meilleure photo | ✅ netteté (variance du laplacien) et exposition mesurées dans le navigateur ; rafale = même appareil, ≤ 10 s, même scène ; choix d'un clic conservé |
 | REC-10 IA de vision pour départager (yeux ouverts, cadrage) | ⏳ nécessite une clé d'API et un budget plafonné : à décider |
-| REC-07, 08 retouches non destructives au rendu identique | ⏳ tranche 3 |
+| REC-07 retouches non destructives | ✅ recadrage (proportions, zoom, position), quarts de tour, redressement, lumière, contraste, hautes lumières, ombres, blancs, noirs, température, teinte, saturation, 4 filtres sobres |
+| REC-08 rendu identique écran / site / PDF | ✅ un seul moteur (shader WebGL2) pour l'aperçu et les versions web ; référence CPU ; équivalence testée en E2E (ΔE ≈ 0) ; page /verification-rendu pour les vrais téléphones ; ⏳ rendu PDF par le même moteur en phase 5 |
 
 ## Phase 2 : où on en est
 

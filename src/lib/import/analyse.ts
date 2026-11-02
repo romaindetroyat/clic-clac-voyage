@@ -156,7 +156,7 @@ export function dhash(image: CanvasImageSource & { width: number; height: number
 
 let webpNatif: boolean | undefined;
 
-async function encoderWebp(c: OffscreenCanvas, qualite = 0.82): Promise<Blob> {
+export async function encoderWebp(c: OffscreenCanvas, qualite = 0.82): Promise<Blob> {
   if (webpNatif !== false) {
     const b = await c.convertToBlob({ type: "image/webp", quality: qualite });
     webpNatif = b.type === "image/webp";

@@ -229,7 +229,8 @@ export const appareil = pgTable(
   (t) => [uniqueIndex("appareil_voyage_cle_unique").on(t.voyageId, t.cle)],
 );
 
-export type VersionsWeb = Partial<Record<"s" | "m" | "l" | "affiche" | "video", string>>;
+/** Versions web : s, m, l (sans retouche), rs, rm, rl (retouchées, « cuites »), affiche et vidéo allégée. */
+export type VersionsWeb = Partial<Record<"s" | "m" | "l" | "rs" | "rm" | "rl" | "affiche" | "video", string>>;
 
 export const media = pgTable(
   "media",
@@ -273,6 +274,9 @@ export const media = pgTable(
     copieCompressee: boolean("copie_compressee").notNull().default(false),
     // Masqué car doublon d'un autre média de meilleure qualité.
     doublonDe: text("doublon_de"),
+
+    // Retouche non destructive (paramètres) ; l'original n'est jamais modifié.
+    retouche: jsonb("retouche").$type<Record<string, unknown>>(),
 
     // Qualité estimée dans le navigateur (0 à 1) et rafales
     nettete: doublePrecision("nettete"),
