@@ -1,8 +1,19 @@
 # État du projet
 
-**Phase en cours** : 2, Import et stockage (première tranche livrée)
+**Phase en cours** : 3, Tri et récit (tranche 1 : épisodes, sélection, échanges)
 **Dernière action** : phase 1 en production (connexion Gmail vérifiée par Romain) ; phase 2, tranche 1 : envoi reprenable vers R2, analyse dans le navigateur, galerie, recalage d'horloge, dédoublonnage
 **Prochaine étape** : tester l'import réel sur téléphone, puis tranche 2 (partage Android et Raccourci iOS, WhatsApp, Google Photos, Drive, Dropbox, OneDrive, vidéo allégée, mode économie de données)
+
+## Phase 3 : où on en est
+
+| Exigence | État |
+|---|---|
+| REC-01, 02, 03 épisodes automatiques et modifiables | ✅ nuits, silences ≥ 6 h, étapes ≥ 50 km ; fusionner, scinder, renommer, réordonner, déplacer, supprimer |
+| REC-04 cases site et livre | ✅ une par une ou par lot |
+| REC-06 légende de l'auteur, commentaires signés, réactions | ✅ |
+| REC-09 galeries fluides | ✅ virtualisées ; visionneuse avec balayage et clavier |
+| REC-05, 10 rafales et meilleure photo | ⏳ tranche 2 |
+| REC-07, 08 retouches non destructives au rendu identique | ⏳ tranche 3 |
 
 ## Phase 2 : où on en est
 

@@ -14,6 +14,7 @@ export default async function LayoutVoyage({ children, params }: LayoutProps<"/v
   const liens = [
     { href: base, libelle: "Le voyage" },
     { href: `${base}/photos`, libelle: "Photos" },
+    { href: `${base}/recit`, libelle: "Récit" },
     { href: `${base}/importer`, libelle: "Importer" },
     { href: `${base}/appareils`, libelle: "Appareils" },
     { href: `${base}/participants`, libelle: "Participants" },
