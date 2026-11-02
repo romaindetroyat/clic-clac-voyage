@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Recherche de secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  verifications:
+    name: Lint, types, tests, build, E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Base pglite embarquée : la CI ne touche à aucun service externe ni à aucune donnée réelle.
+      APP_URL: http://localhost:3000
+      DATABASE_URL: pglite:memoire
+      BETTER_AUTH_SECRET: ci-uniquement-ci-uniquement-ci-uniquement-ci
+      ADMIN_EMAILS: romain@exemple.fr
+      MAIL_OUTBOX_FILE: .data/ci-outbox.jsonl
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-playwright
+          path: playwright-report/
+          retention-days: 3

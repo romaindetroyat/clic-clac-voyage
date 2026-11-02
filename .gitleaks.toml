@@ -1,0 +1,13 @@
+title = "Clic-Clac Voyage"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valeurs factices de développement et de test"
+regexes = [
+  '''dev-uniquement-dev-uniquement''',
+  '''e2e-uniquement-e2e-uniquement''',
+  '''ci-uniquement-ci-uniquement''',
+  '''secret-de-test-secret-de-test''',
+]

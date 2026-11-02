@@ -162,3 +162,11 @@ Chaque phase se termine par quelque chose **utilisable sur mon vrai voyage**.
 
 - Mode **autonome (yolo)**, phases **larges** (environ 7), **recherche courte** au démarrage (imprimeurs, PDF et print, stockage et coûts, import Google, iCloud et WhatsApp, HEIC, RAW et vidéo), **relecture de plan désactivée**, **vérification en fin de phase activée**, tests sur l'essentiel (règles des imprimeurs et calcul du dos, moteur de mise en page, calcul des prix et des parts, droits d'accès, recalage d'horloge et dédoublonnage) plus quelques tests de bout en bout Playwright sur le parcours principal.
 - Commits atomiques, en français ou en anglais au choix mais de façon cohérente. Interface 100 % en français.
+
+---
+
+## Addendum du 2 novembre 2026 : domaine
+
+*Ajouté après le lancement ; le texte ci-dessus est conservé tel quel.*
+
+Dans un premier temps, pas de nom de domaine personnalisé. On utilise l'URL Vercel par défaut du projet (par exemple `clic-clac-voyage.vercel.app`) ; les sites de voyage sont à `<url-vercel>/v/<nom-du-voyage>`. La réservation du domaine n'est pas une tâche. L'URL de base est configurable par la variable d'environnement `APP_URL` (liens d'invitation, liens secrets, manifeste PWA, e-mails) pour passer à `clic-clac-voyage.fr` plus tard sans toucher au code.
