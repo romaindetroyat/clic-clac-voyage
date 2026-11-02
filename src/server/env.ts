@@ -34,7 +34,9 @@ let cached: Env | undefined;
 
 export function env(): Env {
   if (!cached) {
-    const parsed = schema.safeParse(process.env);
+    // L'intégration Neon de Vercel crée DATABASE_URL, et parfois seulement POSTGRES_URL.
+    const brut = { ...process.env, DATABASE_URL: process.env.DATABASE_URL || process.env.POSTGRES_URL };
+    const parsed = schema.safeParse(brut);
     if (!parsed.success) {
       const champs = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
       throw new Error(`Variables d'environnement invalides ou manquantes : ${champs}`);
