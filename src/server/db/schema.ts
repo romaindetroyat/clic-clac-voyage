@@ -266,6 +266,8 @@ export const media = pgTable(
     priseUtc: timestamp("prise_utc", { withTimezone: true }),
     // Date donnée à la main ou déduite des photos voisines (fichier sans date de prise de vue).
     dateEstimee: boolean("date_estimee").notNull().default(false),
+    // Le serveur a déjà cherché la date dans le fichier d'origine (pour ne pas recommencer).
+    dateRelue: boolean("date_relue").notNull().default(false),
 
     // Position précise : privée, jamais exposée publiquement.
     latitude: doublePrecision("latitude"),

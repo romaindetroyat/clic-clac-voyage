@@ -3,9 +3,10 @@
  * (même série de noms de fichiers, IMG_1233 → IMG_1236), ou la donner à la main.
  */
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { z } from "zod";
 import type { Db } from "../db/client";
 import { appareil, media, voyage } from "../db/schema";
+import { lireExif, type SourceOctets } from "../../lib/import/exif";
+import { dateMp4 } from "../../lib/import/mp4";
 import type { Stockage } from "../stockage/types";
 import { trouverOuCreerAppareil, type UrlMedia } from "./medias";
 import { rangerNonClasses } from "./recit";
@@ -124,46 +125,6 @@ export async function etatDates(db: Db, url: UrlMedia, ctx: Ctx) {
   };
 }
 
-/** Originaux des photos sans date que cette personne peut relire (liens de lecture d'une heure). */
-export async function originauxSansDate(db: Db, stockage: Stockage, ctx: Ctx) {
-  const l = (await lignesVisibles(db, ctx.voyageId)).filter((m) => !m.instant && m.type === "photo" && peutModifier(ctx, m.auteurId));
-  return Promise.all(l.map(async (m) => ({ id: m.id, nom: m.nomFichier, mime: m.mime, url: await stockage.urlLecture(m.cleOriginal, 3600) })));
-}
-
-export const schemaExifRelu = z.object({
-  priseLocale: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/),
-  decalageExifMinutes: z.number().int().min(-14 * 60).max(14 * 60).nullable(),
-  latitude: z.number().min(-90).max(90).nullable(),
-  longitude: z.number().min(-180).max(180).nullable(),
-  appareil: z.object({ cle: z.string().min(1).max(300), libelle: z.string().min(1).max(200) }).nullable(),
-});
-
-/** Enregistre la date (et la position, l'appareil) relues dans l'original d'une photo restée sans date. */
-export async function enregistrerExifRelu(db: Db, ctx: Ctx, mediaId: string, exif: z.infer<typeof schemaExifRelu>) {
-  const e = schemaExifRelu.parse(exif);
-  const m = await db.query.media.findFirst({ where: and(eq(media.id, mediaId), eq(media.voyageId, ctx.voyageId)) });
-  if (!m || !peutModifier(ctx, m.auteurId)) throw new ErreurMetier("Photo introuvable.");
-  if (m.priseUtc) return { ok: true };
-  const v = (await db.query.voyage.findFirst({ where: eq(voyage.id, ctx.voyageId) }))!;
-  const priseUtc = priseVersUtc(e.priseLocale, e.decalageExifMinutes, v.fuseau);
-  if (!priseUtc) throw new ErreurMetier("Date illisible.");
-  const app = e.appareil ? await trouverOuCreerAppareil(db, ctx.voyageId, m.auteurId ?? ctx.userId, e.appareil) : null;
-  await db
-    .update(media)
-    .set({
-      priseLocale: e.priseLocale,
-      decalageExifMinutes: e.decalageExifMinutes,
-      priseUtc,
-      dateEstimee: false,
-      latitude: m.latitude ?? e.latitude,
-      longitude: m.longitude ?? e.longitude,
-      ...(app ? { appareilId: app.id } : {}),
-    })
-    .where(eq(media.id, mediaId));
-  await rangerNonClasses(db, ctx.voyageId);
-  return { ok: true };
-}
-
 /**
  * Donne une date (instant UTC voulu dans la galerie) à des médias : elle est marquée « estimée ».
  * Le recalage de leur appareil est compensé pour qu'ils tombent exactement à l'heure choisie.
@@ -199,4 +160,86 @@ export function instantDuJour(jour: string, heure: string, fuseau: string): Date
   const d = priseVersUtc(`${jour}T${heure}:00`, null, fuseau);
   if (!d) throw new ErreurMetier("Jour ou heure invalide.");
   return d;
+}
+
+/* ---------------- Relecture des dates sur le serveur ---------------- */
+
+/** Un objet du stockage lu par plages d'octets, comme un fichier du navigateur. */
+export function sourceDistante(stockage: Stockage, cle: string, taille: number): SourceOctets {
+  return {
+    size: taille,
+    slice: (debut, fin) => ({
+      arrayBuffer: async () => {
+        const o = await stockage.lirePlage(cle, Math.max(0, debut), Math.min(taille, fin));
+        return o.buffer.slice(o.byteOffset, o.byteOffset + o.byteLength) as ArrayBuffer;
+      },
+    }),
+  };
+}
+
+const aRelire = (ctx: Ctx) =>
+  and(
+    eq(media.voyageId, ctx.voyageId),
+    eq(media.statut, "pret"),
+    isNull(media.doublonDe),
+    isNull(media.priseUtc),
+    eq(media.dateRelue, false),
+    ctx.estAdmin ? undefined : eq(media.auteurId, ctx.userId),
+  );
+
+export async function compterARelire(db: Db, ctx: Ctx) {
+  return db.$count(media, aRelire(ctx));
+}
+
+export const LOT_RELECTURE = 25;
+
+/**
+ * Cherche la date de prise de vue dans les originaux des médias sans date (EXIF des photos,
+ * HEIC compris ; atome « mvhd » des vidéos), sans les télécharger en entier. Chaque média n'est
+ * essayé qu'une fois. Traite un lot ; le navigateur relance tant qu'il en reste.
+ */
+export async function relireDatesServeur(db: Db, stockage: Stockage, ctx: Ctx, lot = LOT_RELECTURE) {
+  const v = (await db.query.voyage.findFirst({ where: eq(voyage.id, ctx.voyageId) }))!;
+  const l = await db.query.media.findMany({ where: aRelire(ctx), limit: lot });
+  let trouvees = 0;
+  for (const m of l) {
+    try {
+      const taille = (await stockage.taille(m.cleOriginal)) ?? 0;
+      const source = sourceDistante(stockage, m.cleOriginal, taille);
+      if (m.type === "video") {
+        const d = taille ? await dateMp4(source) : null;
+        if (d) {
+          await db
+            .update(media)
+            .set({ priseUtc: d, priseLocale: heureLocale(d, v.fuseau), decalageExifMinutes: null, dateEstimee: false })
+            .where(eq(media.id, m.id));
+          trouvees++;
+        }
+      } else if (taille) {
+        const e = await lireExif(source);
+        const priseUtc = priseVersUtc(e.priseLocale, e.decalageExifMinutes, v.fuseau);
+        if (priseUtc) {
+          const app = e.appareil ? await trouverOuCreerAppareil(db, ctx.voyageId, m.auteurId ?? ctx.userId, e.appareil) : null;
+          await db
+            .update(media)
+            .set({
+              priseLocale: e.priseLocale,
+              decalageExifMinutes: e.decalageExifMinutes,
+              priseUtc,
+              dateEstimee: false,
+              latitude: m.latitude ?? e.latitude,
+              longitude: m.longitude ?? e.longitude,
+              ...(app ? { appareilId: app.id } : {}),
+            })
+            .where(eq(media.id, m.id));
+          trouvees++;
+        }
+      }
+    } catch (err) {
+      console.error(`Relecture de la date impossible (${m.id})`, err);
+    }
+    await db.update(media).set({ dateRelue: true }).where(eq(media.id, m.id));
+  }
+  if (trouvees) await rangerNonClasses(db, ctx.voyageId);
+  return { essayees: l.length, trouvees, restantes: await compterARelire(db, ctx) };
 }

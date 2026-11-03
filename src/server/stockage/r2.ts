@@ -100,6 +100,12 @@ export class StockageR2 implements Stockage {
     return new Uint8Array(await rep.arrayBuffer());
   }
 
+  async lirePlage(cle: string, debut: number, fin: number) {
+    if (fin <= debut) return new Uint8Array(0);
+    const rep = await this.appel(this.url(cle), { headers: { range: `bytes=${debut}-${fin - 1}` } });
+    return new Uint8Array(await rep.arrayBuffer());
+  }
+
   async ecrire(cle: string, contenu: Uint8Array, typeMime: string) {
     await this.appel(this.url(cle), {
       method: "PUT",

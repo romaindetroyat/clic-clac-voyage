@@ -10,7 +10,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // L'app est presque entièrement authentifiée : rendu dynamique classique.
   cacheComponents: false,
-  serverExternalPackages: ["@electric-sql/pglite", "@myriaddreamin/typst-ts-node-compiler"],
+  // exifr charge fs et zlib à la demande : il doit rester un module Node, pas être empaqueté.
+  serverExternalPackages: ["@electric-sql/pglite", "@myriaddreamin/typst-ts-node-compiler", "exifr"],
   // Polices embarquées dans les PDF du livre (lues sur le disque par Typst).
   // Vercel tourne sous glibc : la variante musl du compilateur Typst (52 Mo) est inutile.
   outputFileTracingExcludes: {

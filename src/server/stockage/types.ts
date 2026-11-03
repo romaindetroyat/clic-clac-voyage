@@ -24,6 +24,8 @@ export interface Stockage {
   urlLectureStable(cle: string): Promise<string>;
   /** Contenu d'un objet (côté serveur : assemblage du PDF). */
   lire(cle: string): Promise<Uint8Array>;
+  /** Octets [debut, fin[ d'un objet (côté serveur : métadonnées sans tout télécharger). */
+  lirePlage(cle: string, debut: number, fin: number): Promise<Uint8Array>;
   /** Écrit un objet en une fois (côté serveur ; jusqu'à quelques centaines de Mo). */
   ecrire(cle: string, contenu: Uint8Array, typeMime: string): Promise<void>;
   /** Taille de l'objet, ou null s'il n'existe pas. */

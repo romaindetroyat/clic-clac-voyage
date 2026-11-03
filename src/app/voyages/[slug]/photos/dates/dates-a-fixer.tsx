@@ -44,27 +44,6 @@ export function DatesAFixer({ slug, jours, sansDate }: { slug: string; fuseau: s
       router.refresh();
     });
 
-  function relire() {
-    action(async () => {
-      const rep = await fetch(`/api/voyages/${slug}/dates`);
-      const { photos } = (await rep.json()) as { photos: { id: string; nom: string; mime: string; url: string }[] };
-      const { lireExif } = await import("@/lib/import/analyse");
-      let trouvees = 0;
-      for (const [i, p] of photos.entries()) {
-        setMessage(`Lecture des fichiers d’origine : ${i} / ${photos.length}…`);
-        try {
-          const exif = await lireExif(new Blob([await (await fetch(p.url)).blob()], { type: p.mime }));
-          if (!exif.priseLocale) continue;
-          await poster(slug, { action: "relire", mediaId: p.id, exif });
-          trouvees++;
-        } catch {
-          // Fichier illisible : il reste à dater à la main.
-        }
-      }
-      return `${trouvees} date${trouvees > 1 ? "s" : ""} retrouvée${trouvees > 1 ? "s" : ""} dans les fichiers d’origine sur ${photos.length}.`;
-    });
-  }
-
   function appliquerSuggestions() {
     const choix = avecSuggestion.filter((m) => suggestionsCochees.has(m.id)).map((m) => ({ id: m.id, instant: m.suggestion!.instant }));
     action(async () => {
@@ -104,21 +83,10 @@ export function DatesAFixer({ slug, jours, sansDate }: { slug: string; fuseau: s
         </p>
       ) : null}
 
-      <section className="space-y-2">
-        <h3 className="text-xl">1. Relire les fichiers d’origine</h3>
-        <p className="max-w-2xl text-sm text-encre-douce">
-          Les photos d’iPhone (HEIC) importées avant le 3 novembre ont perdu leur date à l’import : elle est pourtant dans le fichier. Ce bouton la
-          relit, avec la position et l’appareil.
-        </p>
-        <button type="button" className="bouton-discret" disabled={enCours} onClick={relire}>
-          Relire les dates des fichiers d’origine
-        </button>
-      </section>
-
       {avecSuggestion.length ? (
         <section className="space-y-3" aria-labelledby="titre-suggestions">
           <h3 id="titre-suggestions" className="text-xl">
-            2. Dates déduites des photos voisines
+            1. Dates déduites des photos voisines
           </h3>
           <p className="max-w-2xl text-sm text-encre-douce">
             Les appareils numérotent leurs fichiers dans l’ordre : une photo sans date entre IMG_1233 et IMG_1236 a été prise entre les deux.
@@ -150,7 +118,7 @@ export function DatesAFixer({ slug, jours, sansDate }: { slug: string; fuseau: s
 
       <section className="space-y-3" aria-labelledby="titre-manuel">
         <h3 id="titre-manuel" className="text-xl">
-          {avecSuggestion.length ? "3." : "2."} Choisir le jour à la main
+          {avecSuggestion.length ? "2." : "1."} Choisir le jour à la main
         </h3>
         <p className="max-w-2xl text-sm text-encre-douce">Touchez les photos d’un même jour, puis le jour. L’heure sert à les placer dans la journée.</p>
         <div className="flex flex-wrap items-center gap-3">

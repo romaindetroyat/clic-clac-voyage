@@ -127,7 +127,7 @@ export function tiffDepuisElement(el: Uint8Array): Uint8Array | null {
 }
 
 /** En-tête TIFF de l'EXIF d'un fichier HEIF (ou null si ce n'en est pas un, ou sans EXIF). */
-export async function exifHeif(f: Blob): Promise<Uint8Array | null> {
+export async function exifHeif(f: { size: number; slice(debut: number, fin: number): { arrayBuffer(): Promise<ArrayBuffer> } }): Promise<Uint8Array | null> {
   const lire = async (debut: number, fin: number) => new Uint8Array(await f.slice(debut, fin).arrayBuffer());
   // La boîte « meta » est au début du fichier ; 512 Ko suffisent largement.
   const tete = await lire(0, Math.min(f.size, 512 * 1024));
