@@ -112,7 +112,7 @@ function envoyer(url: string, corps: Blob, progression?: (octets: number) => voi
 let worker: Worker | null = null;
 const attentes = new Map<string, { ok: (a: Analyse) => void; ko: (e: Error) => void; prog: (p: number) => void }>();
 
-function analyserDansWorker(id: string, fichier: Blob, nom: string, prog: (p: number) => void): Promise<Analyse> {
+export function analyserDansWorker(id: string, fichier: Blob, nom: string, prog: (p: number) => void): Promise<Analyse> {
   if (!worker) {
     worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     worker.onmessage = (e: MessageEvent<{ id: string; resultat?: Analyse; erreur?: string; progression?: number }>) => {

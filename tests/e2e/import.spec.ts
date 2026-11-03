@@ -140,3 +140,43 @@ test("économie de données : les gros fichiers attendent le Wi-Fi ou un feu ver
   await attendreFinEnvoi(page, /^2 envoyés$/);
   await page.getByLabel(/Économiser les données mobiles/).uncheck();
 });
+
+test("HEIC (iPhone) : vignette générée dans le navigateur", async ({ page }) => {
+  test.setTimeout(120_000);
+  await seConnecterParCode(page, "romain@exemple.fr");
+  await page.getByLabel("Nom").fill("Photos iPhone");
+  await page.getByRole("button", { name: "Créer le voyage" }).click();
+  await expect(page).toHaveURL(/\/voyages\/photos-iphone$/);
+  await page.goto("/voyages/photos-iphone/importer");
+  await page.getByTestId("choisir-fichiers").setInputFiles([F("IMG_0003.HEIC")]);
+  await attendreFinEnvoi(page, /^1 envoyé$/);
+  await expect(page.getByText("Aperçu impossible")).toHaveCount(0);
+
+  await page.goto("/voyages/photos-iphone/photos");
+  const vignette = page.getByRole("button", { name: "Photo IMG_0003.HEIC" }).locator("img");
+  await expect(vignette).toBeVisible();
+  await expect.poll(() => vignette.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
+});
+
+test("photos importées sans aperçu : l'aperçu est recréé depuis l'original", async ({ page }) => {
+  test.setTimeout(120_000);
+  await seConnecterParCode(page, "romain@exemple.fr");
+  // Simule un ancien import sans versions web : la déclaration part sans « versions ».
+  await page.route("**/api/voyages/photos-iphone/envois", async (route) => {
+    const corps = route.request().postDataJSON();
+    await route.continue({ postData: JSON.stringify({ ...corps, versions: [] }) });
+  });
+  await page.goto("/voyages/photos-iphone/importer");
+  await page.getByTestId("choisir-fichiers").setInputFiles([F("RAFALE_1.jpg")]);
+  await attendreFinEnvoi(page, /^1 envoyé$/);
+  await page.unroute("**/api/voyages/photos-iphone/envois");
+
+  await page.goto("/voyages/photos-iphone/photos");
+  const bloc = page.getByTestId("apercus-manquants");
+  await expect(bloc).toContainText("1 photo sans aperçu");
+  await bloc.getByRole("button", { name: "Créer les aperçus manquants" }).click();
+  // Une fois tout réparé, l'encadré disparaît.
+  await expect(page.getByTestId("apercus-manquants")).toHaveCount(0, { timeout: 60_000 });
+  const vignette = page.getByRole("button", { name: "Photo RAFALE_1.jpg" }).locator("img");
+  await expect.poll(() => vignette.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
+});

@@ -62,7 +62,8 @@ export function creerAuth(o: OptionsAuth) {
       customRules: {
         // Un groupe sur le même Wi-Fi partage une adresse IP : on laisse de la marge.
         "/email-otp/send-verification-otp": { window: 60, max: o.codesParMinute ?? 10 },
-        "/sign-in/email-otp": { window: 60, max: 20 },
+        // Deux essais de saisie par code envoyé (20 par minute en production, relevé avec la limite des codes pour les tests E2E).
+        "/sign-in/email-otp": { window: 60, max: Math.max(20, 2 * (o.codesParMinute ?? 10)) },
       },
     },
     databaseHooks: {
