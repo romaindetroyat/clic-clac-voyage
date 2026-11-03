@@ -217,3 +217,14 @@ test("dates : HEIC sans date relue automatiquement, capture d'écran datée à l
   await page.getByRole("button", { name: "Photo Capture_ecran.png" }).click();
   await expect(page.getByRole("dialog")).toContainText("(date estimée)");
 });
+
+test("repartir de zéro : toutes les photos du voyage supprimées, le voyage reste", async ({ page }) => {
+  await seConnecterParCode(page, "romain@exemple.fr");
+  await page.goto("/voyages/photos-iphone/reglages");
+  const zone = page.locator("section").filter({ has: page.getByRole("heading", { name: "Repartir de zéro" }) });
+  await zone.getByLabel(/Pour vider le voyage/).fill("Photos iPhone");
+  await zone.getByRole("button", { name: "Supprimer toutes les photos et vidéos" }).click();
+  await expect(zone.getByText(/supprimées\. Le voyage est prêt pour un nouvel import\./)).toBeVisible();
+  await page.goto("/voyages/photos-iphone/photos");
+  await expect(page.getByText("Aucune photo pour l’instant.")).toBeVisible();
+});

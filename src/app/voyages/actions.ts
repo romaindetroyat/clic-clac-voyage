@@ -20,7 +20,7 @@ import {
   type StatutCommande,
 } from "@/server/domaine/commande";
 import { reglerDecalage } from "@/server/domaine/medias";
-import { supprimerCompte, supprimerVoyage } from "@/server/domaine/suppression";
+import { supprimerCompte, supprimerVoyage, viderVoyage } from "@/server/domaine/suppression";
 import { getStockage } from "@/server/stockage";
 import {
   deplacerEpisode,
@@ -354,6 +354,18 @@ export async function actionSupprimerVoyage(slug: string, _: EtatAction, form: F
   if (r?.erreur) return r;
   revalidatePath("/voyages");
   redirect("/voyages");
+}
+
+export async function actionViderVoyage(slug: string, _: EtatAction, form: FormData): Promise<EtatAction> {
+  return proteger(async () => {
+    const { voyage } = await exigerVoyage(slug, "admin");
+    if (String(form.get("confirmation") ?? "").trim() !== voyage.nom) {
+      throw new ErreurMetier("Recopiez exactement le nom du voyage pour confirmer.");
+    }
+    const r = await viderVoyage(await getDb(), getStockage(), voyage.id);
+    revalidatePath(`/voyages/${slug}`, "layout");
+    return { message: `${r.medias} photo${r.medias > 1 ? "s et vidéos supprimées" : " ou vidéo supprimée"}. Le voyage est prêt pour un nouvel import.` };
+  });
 }
 
 export async function actionSupprimerCompte(_: EtatAction, form: FormData): Promise<EtatAction> {

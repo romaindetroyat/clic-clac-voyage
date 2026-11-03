@@ -4,7 +4,21 @@
  */
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { commentaire, invitation, media, participant, session, user, verification, voyage } from "../db/schema";
+import {
+  appareil,
+  commentaire,
+  episode,
+  invitation,
+  livre,
+  media,
+  participant,
+  rafaleIa,
+  session,
+  user,
+  verification,
+  versionLivre,
+  voyage,
+} from "../db/schema";
 import type { Stockage } from "../stockage/types";
 import { ErreurMetier } from "./voyages";
 
@@ -16,6 +30,25 @@ export async function supprimerVoyage(db: Db, stockage: Stockage, voyageId: stri
   const fichiers = await stockage.supprimerPrefixe(`voyages/${voyageId}/`);
   await db.delete(voyage).where(eq(voyage.id, voyageId));
   return { fichiers };
+}
+
+/**
+ * Repartir de zéro : supprime toutes les photos et vidéos du voyage (fichiers compris), ainsi que
+ * ce qui en dépend (épisodes, livre et ses versions, appareils, choix de l'IA). Le voyage, ses
+ * participants, invitations, liens secrets, réglages du site et commandes sont conservés.
+ */
+export async function viderVoyage(db: Db, stockage: Stockage, voyageId: string) {
+  const fichiers = await stockage.supprimerPrefixe(`voyages/${voyageId}/`);
+  const medias = await db.$count(media, eq(media.voyageId, voyageId));
+  await db.transaction(async (tx) => {
+    await tx.delete(media).where(eq(media.voyageId, voyageId));
+    await tx.delete(episode).where(eq(episode.voyageId, voyageId));
+    await tx.delete(versionLivre).where(eq(versionLivre.voyageId, voyageId));
+    await tx.delete(livre).where(eq(livre.voyageId, voyageId));
+    await tx.delete(appareil).where(eq(appareil.voyageId, voyageId));
+    await tx.delete(rafaleIa).where(eq(rafaleIa.voyageId, voyageId));
+  });
+  return { medias, fichiers };
 }
 
 /** Voyages qui bloqueraient la suppression : la personne en est le seul administrateur et d'autres y participent. */

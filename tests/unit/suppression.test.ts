@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/server/db/client";
-import { commentaire, media, participant, reaction, user, verification, voyage } from "@/server/db/schema";
+import { commentaire, episode, media, participant, reaction, user, verification, voyage } from "@/server/db/schema";
 import { genererId } from "@/server/domaine/crypto";
 import { commenter, basculerReaction } from "@/server/domaine/recit";
-import { supprimerCompte, supprimerVoyage, voyagesABloquer } from "@/server/domaine/suppression";
+import { supprimerCompte, supprimerVoyage, viderVoyage, voyagesABloquer } from "@/server/domaine/suppression";
 import { accepterInvitations, changerRole, creerVoyage, ErreurMetier, inviter } from "@/server/domaine/voyages";
 import { StockageLocal } from "@/server/stockage/local";
 import { baseDeTest, creerUtilisateur } from "./aide-db";
@@ -48,6 +48,24 @@ describe("RGPD : suppression d'un voyage et d'un compte", () => {
     expect(await db.$count(media, undefined)).toBe(1);
     expect(await db.$count(participant, undefined)).toBe(1);
     expect(await stockage.taille(q.cle)).toBe(3); // l'autre voyage est intact
+  });
+
+  it("repartir de zéro : photos, fichiers et épisodes supprimés, voyage et participants gardés", async () => {
+    const p = await photo(partage, lea.id);
+    await photo(partage, romain.id);
+    await commenter(db, { voyageId: partage, userId: lea.id }, p.id, "Superbe");
+    await db.insert(episode).values({ id: genererId(), voyageId: partage, titre: "Naxos", ordre: 0 });
+    const autre = (await creerVoyage(db, romain.id, { nom: "Autre" })).id;
+    const q = await photo(autre, romain.id);
+
+    expect(await viderVoyage(db, stockage, partage)).toEqual({ medias: 2, fichiers: 6 });
+    expect(await stockage.taille(p.cle)).toBeNull();
+    expect(await db.$count(media, undefined)).toBe(1);
+    expect(await db.$count(commentaire, undefined)).toBe(0);
+    expect(await db.$count(episode, undefined)).toBe(0);
+    expect(await db.$count(participant, undefined)).toBe(3); // Romain et Léa dans « Partagé », Romain dans « Autre »
+    expect(await db.query.voyage.findFirst({ where: (t, { eq }) => eq(t.id, partage) })).toBeDefined();
+    expect(await stockage.taille(q.cle)).toBe(3);
   });
 
   it("supprime un compte : ses photos (fichiers compris), ses commentaires, ses voyages où il est seul", async () => {
