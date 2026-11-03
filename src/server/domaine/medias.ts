@@ -75,7 +75,7 @@ export async function urlsVersions(stockage: Stockage, voyageId: string, mediaId
   return res;
 }
 
-async function trouverOuCreerAppareil(db: Db, voyageId: string, userId: string, a: Declaration["appareil"]) {
+export async function trouverOuCreerAppareil(db: Db, voyageId: string, userId: string, a: Declaration["appareil"]) {
   // Sans EXIF d'appareil : un « appareil » par personne qui importe.
   const cle = a?.cle ?? `import:${userId}`;
   const libelle = a?.libelle ?? "Appareil inconnu";
@@ -294,6 +294,8 @@ export type MediaGalerie = {
   dansLivre: boolean;
   /** Mise en avant dans le site. */
   vedette: boolean;
+  /** Date donnée à la main ou déduite des voisines. */
+  dateEstimee: boolean;
 };
 
 /**
@@ -361,6 +363,7 @@ export async function galerie(
       dansSite: l.dansSite,
       dansLivre: l.dansLivre,
       vedette: l.vedette,
+      dateEstimee: l.dateEstimee,
     }));
 }
 

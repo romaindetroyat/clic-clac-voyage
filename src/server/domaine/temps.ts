@@ -105,3 +105,9 @@ export function formaterDecalage(secondes: number): string {
   const morceaux = [j && `${j} j`, h && `${h} h`, m && `${m} min`, s && `${s} s`].filter(Boolean);
   return `${signe}${morceaux.join(" ")}`;
 }
+
+/** Heure locale « AAAA-MM-JJTHH:mm:ss » d'un instant dans un fuseau IANA. */
+export function heureLocale(instant: Date, fuseau: string): string {
+  const d = new Date(instant.getTime() + decalageFuseauMinutes(fuseau, instant) * 60_000);
+  return d.toISOString().slice(0, 19);
+}

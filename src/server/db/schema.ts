@@ -264,6 +264,8 @@ export const media = pgTable(
     decalageExifMinutes: integer("decalage_exif_minutes"),
     // Instant UTC avant recalage : priseLocale interprétée dans son fuseau (ou celui du voyage).
     priseUtc: timestamp("prise_utc", { withTimezone: true }),
+    // Date donnée à la main ou déduite des photos voisines (fichier sans date de prise de vue).
+    dateEstimee: boolean("date_estimee").notNull().default(false),
 
     // Position précise : privée, jamais exposée publiquement.
     latitude: doublePrecision("latitude"),

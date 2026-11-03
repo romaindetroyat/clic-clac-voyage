@@ -180,3 +180,30 @@ test("photos importées sans aperçu : l'aperçu est recréé depuis l'original"
   const vignette = page.getByRole("button", { name: "Photo RAFALE_1.jpg" }).locator("img");
   await expect.poll(() => vignette.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
 });
+
+test("dates : HEIC d'iPhone datée à l'import, capture d'écran datée à la main", async ({ page }) => {
+  test.setTimeout(120_000);
+  await seConnecterParCode(page, "romain@exemple.fr");
+  await page.goto("/voyages/photos-iphone/importer");
+  await page.getByTestId("choisir-fichiers").setInputFiles([F("IMG_0004.HEIC"), F("Capture_ecran.png")]);
+  await attendreFinEnvoi(page, /^\d+ envoyés$/);
+
+  await page.goto("/voyages/photos-iphone/photos");
+  // La HEIC garde sa date EXIF (3 août, 14 h à Naxos) ; la capture n'en a pas.
+  await page.getByRole("button", { name: "Photo IMG_0004.HEIC" }).click();
+  await expect(page.getByRole("dialog")).toContainText("3 août");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("sans-date")).toContainText("1 photo ou vidéo sans date");
+
+  await page.getByRole("link", { name: "Leur donner une date" }).click();
+  await expect(page.getByRole("heading", { name: "Dates à fixer" })).toBeVisible();
+  await page.getByRole("button", { name: "Photo Capture_ecran.png" }).click();
+  await page.getByLabel("Heure").fill("18:30");
+  await page.getByRole("group", { name: "Jours du voyage" }).getByRole("button", { name: /3 août/ }).click();
+  await expect(page.getByRole("status")).toContainText("Toutes les photos et vidéos ont une date.");
+
+  await page.goto("/voyages/photos-iphone/photos");
+  await expect(page.getByTestId("sans-date")).toHaveCount(0);
+  await page.getByRole("button", { name: "Photo Capture_ecran.png" }).click();
+  await expect(page.getByRole("dialog")).toContainText("(date estimée)");
+});
