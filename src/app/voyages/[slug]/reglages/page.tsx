@@ -6,7 +6,7 @@ import { usage } from "@/server/domaine/usage";
 import { adminEmails, appUrl } from "@/server/env";
 import { budgetIa } from "@/server/ia/budget";
 import { iaActive } from "@/server/ia/client";
-import { actionModifierVoyage, actionSupprimerVoyage } from "../../actions";
+import { actionModifierVoyage, actionSupprimerVoyage, actionViderVoyage } from "../../actions";
 
 export const metadata = { title: "Réglages" };
 
@@ -75,6 +75,19 @@ export default async function Reglages({ params }: PageProps<"/voyages/[slug]/re
             ))}
           </div>
         ) : null}
+      </section>
+      <section className="space-y-3 rounded-lg border border-danger/40 p-4">
+        <h2 className="text-2xl">Repartir de zéro</h2>
+        <p className="text-sm text-encre-douce">
+          Supprime définitivement toutes les photos et vidéos du voyage (originaux compris), avec ce qui en dépend : épisodes et récit,
+          commentaires, livre. Le voyage, ses participants, ses liens de partage et ses réglages sont conservés, prêts pour un nouvel import.
+        </p>
+        <FormulaireAction action={actionViderVoyage.bind(null, slug)} bouton="Supprimer toutes les photos et vidéos">
+          <label className="block space-y-1.5">
+            <span className="etiquette">Pour vider le voyage, recopiez son nom : {voyage.nom}</span>
+            <input name="confirmation" className="champ" required autoComplete="off" />
+          </label>
+        </FormulaireAction>
       </section>
       <section className="space-y-3 rounded-lg border border-danger/40 p-4">
         <h2 className="text-2xl">Supprimer le voyage</h2>
