@@ -25,9 +25,13 @@ test("imprimeurs et commande : comparer, choisir, commander, qui doit combien à
   await expect(romain.getByText("Pour votre livre : 24 pages")).toBeVisible();
   await expect(romain.getByText(/CEWE.*France/)).toBeVisible();
   await romain.getByRole("link", { name: "Prix", exact: true }).click();
-  // Le moins cher : Fotofabriek A4, 24 pages incluses à 29,99 € (port non relevé, signalé).
-  await expect(romain.getByTestId("offre").first().getByRole("heading")).toHaveText("Fotofabriek");
+  // Le moins cher : Flexilivre A4 rigide, 24 à 30 pages à 29,90 € (port non relevé, signalé), livré en France.
+  await expect(romain.getByTestId("offre").first().getByRole("heading")).toHaveText("Flexilivre");
   await expect(romain.getByTestId("offre").first().getByText("hors frais de port")).toBeVisible();
+  await expect(romain.getByTestId("offre").first().getByTestId("livraison-france")).toContainText("Oui");
+  // Fotofabriek : livraison en France seulement sur demande, signalée.
+  const fotofabriek = romain.getByTestId("offre").filter({ has: romain.getByRole("heading", { name: "Fotofabriek" }) });
+  await expect(fotofabriek.getByTestId("livraison-france")).toContainText("Sur demande");
   const premiere = romain.getByTestId("offre").filter({ has: romain.getByRole("heading", { name: "Blurb" }) });
   // Blurb 20 × 25 Standard, 24 pages : 38,40 + 4 × 0,48 = 40,32 €.
   await expect(premiere.getByTestId("total")).toHaveText(/40,32\s€/);

@@ -21,6 +21,7 @@ const TRIS: Record<Tri, string> = { score: "Meilleur compromis", prix: "Prix", n
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const STATUTS: Record<Source["statut"], string> = { V: "vérifié", S: "source secondaire", NV: "non vérifié" };
 const fmtDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+const LIVRAISON = { oui: "Oui", procedure: "Sur demande au service client", non: "Non", inconnue: "À confirmer" } as const;
 
 function Badge({ s }: { s: Source["statut"] }) {
   const c = s === "V" ? "border-succes text-succes" : s === "S" ? "border-accent text-accent" : "border-filet text-encre-douce";
@@ -108,7 +109,14 @@ export default async function PageImprimeurs({ params, searchParams }: PageProps
                 </p>
               </div>
             </div>
-            <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+            <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <dt className="etiquette">Livraison en France</dt>
+                <dd data-testid="livraison-france">
+                  {LIVRAISON[li.imprimeur.livraisonFrance.valeur ?? "inconnue"]}{" "}
+                  <Badge s={li.imprimeur.livraisonFrance.statut} />
+                </dd>
+              </div>
               <div>
                 <dt className="etiquette">Clients</dt>
                 <dd>
@@ -125,7 +133,7 @@ export default async function PageImprimeurs({ params, searchParams }: PageProps
                 <dt className="etiquette">Délai</dt>
                 <dd>
                   {li.delaiJours != null
-                    ? `${li.delaiJours} jours ouvrés`
+                    ? `${li.delaiJours} jours ouvrés au plus`
                     : li.imprimeur.delais.fabrication != null
                       ? `Fabrication ${li.imprimeur.delais.fabrication} j, livraison non relevée`
                       : "Non relevé"}
@@ -160,10 +168,16 @@ export default async function PageImprimeurs({ params, searchParams }: PageProps
                   Prix <Badge s={li.produit.prix.statut} /> · port <Badge s={li.imprimeur.port.statut} />
                   {li.imprimeur.port.regle ? ` (${li.imprimeur.port.regle})` : ""} · délais <Badge s={li.imprimeur.delais.statut} />
                 </p>
+                <p>Livraison en France : {li.imprimeur.livraisonFrance.detail}</p>
+                {li.imprimeur.remises ? (
+                  <p>
+                    Remises : {li.imprimeur.remises.texte} <Badge s={li.imprimeur.remises.statut} />
+                  </p>
+                ) : null}
                 <p className="text-encre-douce">{li.imprimeur.remarques}</p>
                 <p className="text-encre-douce">
                   Dernière vérification le {fmtDate.format(new Date(li.imprimeur.releve))}.{" "}
-                  {[li.produit.prix.source, li.imprimeur.technique.source, li.imprimeur.note?.source]
+                  {[li.produit.prix.source, li.imprimeur.livraisonFrance.source, li.imprimeur.port.source, li.imprimeur.delais.source, li.imprimeur.technique.source, li.imprimeur.note?.source]
                     .filter((x, j, t): x is string => !!x && t.indexOf(x) === j)
                     .map((u, j) => (
                       <a key={u} href={u} target="_blank" rel="noreferrer" className="lien mr-2">

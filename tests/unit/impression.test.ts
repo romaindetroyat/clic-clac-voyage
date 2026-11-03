@@ -176,7 +176,7 @@ describe("impression : profils d'export par imprimeur", () => {
     expect(pages(u)[0]).toEqual(["premiere"]);
     expect(pages(u).at(-1)).toEqual(["quatrieme"]);
     expect(u.feuilles).toHaveLength(26);
-    expect(u.feuilles[0]).toMatchObject({ largeur: 210, hauteur: 297, fondPerdu: 0 });
+    expect(u.feuilles[0]).toMatchObject({ largeur: 210, hauteur: 300, fondPerdu: 0 });
   });
 
   it("CEWE : fond perdu de 10 mm sur la couverture, 3 mm à l'intérieur", () => {

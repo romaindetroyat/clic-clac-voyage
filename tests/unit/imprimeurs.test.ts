@@ -11,7 +11,7 @@ const produit = (o: Partial<Produit> = {}): Produit => ({
   prix: { devise: "EUR", base: 30, pagesIncluses: 24, parPageSup: 0.5, statut: "V" }, ...o,
 });
 const imprimeur = (id: string, o: Partial<Imprimeur> = {}): Imprimeur => ({
-  id, nom: id, pays: "FR", site: "", lienCommande: "", pdfFrance: { valeur: true, statut: "V" }, produits: [produit()],
+  id, nom: id, pays: "FR", site: "", lienCommande: "", pdfFrance: { valeur: true, statut: "V" }, livraisonFrance: { valeur: "oui", detail: "", statut: "V" }, produits: [produit()],
   technique: { fondPerdu: 3, fondPerduCouverture: 3, securite: 6, securiteReliure: 6, couleur: "sRGB", normePdf: "libre", fichiers: "separes", dos: "formule", dosTitreMin: 6, poidsMaxMo: null, statut: "V" },
   port: { devise: "EUR", premier: 8, suivant: 2, francoDes: null, statut: "V" }, delais: { fabrication: 3, livraison: 4, statut: "V" },
   note: { valeur: 4.5, avis: 100, domaine: "x", statut: "V" }, api: false, releve: "2026-11-02", remarques: "", ...o,
@@ -49,6 +49,7 @@ describe("imprimeurs : comparateur", () => {
         imprimeur("a"),
         imprimeur("b", { produits: [produit({ prix: { devise: "EUR", base: 20, pagesIncluses: 20, parPageSup: 0.4, statut: "V" } })] }),
         imprimeur("logiciel", { pdfFrance: { valeur: false, statut: "V" } }),
+        imprimeur("loin", { livraisonFrance: { valeur: "non", detail: "", statut: "V" } }),
         imprimeur("carres", { produits: [produit({ largeur: 300, hauteur: 300 })] }),
         imprimeur("court", { produits: [produit({ pagesMax: 40 })] }),
       ],
@@ -61,6 +62,7 @@ describe("imprimeurs : comparateur", () => {
     expect(lignes[0]).toMatchObject({ exemplaire: 36, port: 12, total: 120, pages: 60 });
     expect(exclusions.map((e) => [e.imprimeur.id, e.raison])).toEqual([
       ["logiciel", expect.stringMatching(/PDF libre depuis la France/)],
+      ["loin", "Ne livre pas en France."],
       ["carres", expect.stringMatching(/Aucun format portrait/)],
       ["court", expect.stringMatching(/40 pages au plus/)],
     ]);
@@ -79,6 +81,29 @@ describe("imprimeurs : comparateur", () => {
     const sansPort = comparer([imprimeur("p", { port: { devise: "EUR", premier: null, suivant: null, francoDes: null, statut: "NV" } })], livre, 2).lignes[0];
     expect(sansPort).toMatchObject({ total: 96, port: null, portInclus: false });
     expect(lignes[1].incertitudes.join(" ")).toMatch(/Prix non relevé.*PDF|PDF.*Prix non relevé/s);
+  });
+
+  it("livraison en France sur demande ou à confirmer : signalée ; délai global accepté", () => {
+    const { lignes } = comparer(
+      [
+        imprimeur("demande", { livraisonFrance: { valeur: "procedure", detail: "", statut: "V" } }),
+        imprimeur("global", { livraisonFrance: { valeur: null, detail: "", statut: "NV" }, delais: { fabrication: null, livraison: null, total: 5, statut: "V" } }),
+      ],
+      livre,
+      1,
+    );
+    const par = Object.fromEntries(lignes.map((l) => [l.imprimeur.id, l]));
+    expect(par.demande.incertitudes).toContain("Livraison en France hors du tunnel de commande, sur demande au service client.");
+    expect(par.global.incertitudes).toContain("Livraison en France à confirmer.");
+    expect(par.global.delaiJours).toBe(5);
+  });
+
+  it("catalogue réel : un livre A4 de 24 pages, livré en France", () => {
+    const { lignes, exclusions } = comparer(IMPRIMEURS, { pages: 24, largeur: 210, hauteur: 297 }, 1, "prix");
+    expect(exclusions.map((e) => e.imprimeur.id)).toContain("cewe");
+    expect(lignes[0]).toMatchObject({ exemplaire: 29.9, produit: { id: "a4-rigide" } });
+    expect(lignes[0].imprimeur.id).toBe("flexilivre");
+    for (const i of IMPRIMEURS) expect(i.livraisonFrance.detail.length).toBeGreaterThan(10);
   });
 
   it("classements : note, délai, score combiné", () => {
@@ -101,7 +126,7 @@ describe("imprimeurs : comparateur", () => {
   });
 
   it("catalogue réel : chaque imprimeur a des produits cohérents et une source", () => {
-    expect(IMPRIMEURS.length).toBeGreaterThanOrEqual(8);
+    expect(IMPRIMEURS.length).toBeGreaterThanOrEqual(9);
     for (const i of IMPRIMEURS) {
       expect(i.produits.length).toBeGreaterThan(0);
       expect(i.releve).toMatch(/^\d{4}-\d{2}-\d{2}$/);

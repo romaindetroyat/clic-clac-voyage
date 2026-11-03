@@ -53,7 +53,7 @@ export type Technique = Source & {
   securite: number;
   /** Marge supplémentaire côté reliure. */
   securiteReliure: number;
-  couleur: "sRGB" | "CMJN FOGRA39";
+  couleur: "sRGB" | "CMJN FOGRA39" | "CMJN GRACoL";
   normePdf: "libre" | "PDF/X-4" | "PDF/X-3" | "PDF 1.3";
   fichiers: Fichiers;
   /** PDF unique : gardes vierges après la couverture et à la fin (Gelato). */
@@ -71,10 +71,18 @@ export type Imprimeur = {
   lienCommande: string;
   /** Peut-on commander depuis la France en déposant un PDF ? */
   pdfFrance: Source & { valeur: boolean | null };
+  /**
+   * Livraison en France : « oui » = la France se choisit à la commande ; « procedure » = possible
+   * hors du tunnel de commande (service client) ; « non » = pas d'envoi en France.
+   */
+  livraisonFrance: Source & { valeur: "oui" | "procedure" | "non" | null; detail: string };
+  /** Remises de quantité publiées. */
+  remises?: Source & { texte: string };
   produits: Produit[];
   technique: Technique;
   port: Source & { devise: Devise; premier: number | null; suivant: number | null; francoDes: number | null; regle?: string };
-  delais: Source & { fabrication: number | null; livraison: number | null };
+  /** Jours ouvrés (borne haute). `total` quand l'imprimeur ne donne qu'un délai global. */
+  delais: Source & { fabrication: number | null; livraison: number | null; total?: number | null };
   note: (Source & { valeur: number; avis: number; domaine: string }) | null;
   /** Commande par API (V2). */
   api: boolean;
