@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
+import { RelectureDates } from "@/components/relecture-dates";
 import { compterSansApercu } from "@/server/domaine/apercus";
+import { compterARelire } from "@/server/domaine/dates";
 import { galerie, urlsMembre } from "@/server/domaine/medias";
 import { ApercusManquants } from "./apercus-manquants";
 import { Galerie } from "./galerie";
@@ -12,10 +14,8 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
   const { slug } = await params;
   const { voyage, utilisateur, estAdmin } = await accesVoyage(slug);
   const db = await getDb();
-  const [medias, sansApercu] = await Promise.all([
-    galerie(db, urlsMembre(slug), voyage.id),
-    compterSansApercu(db, { voyageId: voyage.id, userId: utilisateur.id, estAdmin }),
-  ]);
+  const ctx = { voyageId: voyage.id, userId: utilisateur.id, estAdmin };
+  const [medias, sansApercu, aRelire] = await Promise.all([galerie(db, urlsMembre(slug), voyage.id), compterSansApercu(db, ctx), compterARelire(db, ctx)]);
   if (medias.length === 0) {
     return (
       <div className="space-y-4">
@@ -43,6 +43,7 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
           <Link href={`/voyages/${voyage.slug}/photos/dates`} className="bouton-discret">
             Leur donner une date
           </Link>
+          <RelectureDates slug={voyage.slug} aRelire={aRelire} />
         </div>
       ) : null}
       {sansApercu ? <ApercusManquants slug={voyage.slug} nombre={sansApercu} /> : null}

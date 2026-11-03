@@ -1,0 +1,1 @@
+ALTER TABLE "media" ADD COLUMN "date_relue" boolean DEFAULT false NOT NULL;

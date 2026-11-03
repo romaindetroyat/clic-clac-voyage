@@ -181,26 +181,36 @@ test("photos importées sans aperçu : l'aperçu est recréé depuis l'original"
   await expect.poll(() => vignette.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
 });
 
-test("dates : HEIC d'iPhone datée à l'import, capture d'écran datée à la main", async ({ page }) => {
+test("dates : HEIC sans date relue automatiquement, capture d'écran datée à la main", async ({ page }) => {
   test.setTimeout(120_000);
   await seConnecterParCode(page, "romain@exemple.fr");
+  // Simule un import d'avant le correctif : la HEIC arrive sans date ni appareil.
+  await page.route("**/api/voyages/photos-iphone/envois", async (route) => {
+    const corps = route.request().postDataJSON();
+    const sansDate = corps.nomFichier === "IMG_0004.HEIC" ? { priseLocale: null, decalageExifMinutes: null, appareil: null } : {};
+    await route.continue({ postData: JSON.stringify({ ...corps, ...sansDate }) });
+  });
   await page.goto("/voyages/photos-iphone/importer");
   await page.getByTestId("choisir-fichiers").setInputFiles([F("IMG_0004.HEIC"), F("Capture_ecran.png")]);
   await attendreFinEnvoi(page, /^\d+ envoyés$/);
+  await page.unroute("**/api/voyages/photos-iphone/envois");
 
+  // À l'ouverture des photos, le serveur relit tout seul la date dans l'original.
   await page.goto("/voyages/photos-iphone/photos");
-  // La HEIC garde sa date EXIF (3 août, 14 h à Naxos) ; la capture n'en a pas.
+  await expect(page.getByTestId("relecture-dates")).toHaveText("1 date retrouvée dans les fichiers d’origine.", { timeout: 60_000 });
+  await expect(page.getByTestId("sans-date")).toContainText("1 photo ou vidéo sans date");
   await page.getByRole("button", { name: "Photo IMG_0004.HEIC" }).click();
   await expect(page.getByRole("dialog")).toContainText("3 août");
+  await expect(page.getByRole("dialog")).not.toContainText("date estimée");
   await page.keyboard.press("Escape");
-  await expect(page.getByTestId("sans-date")).toContainText("1 photo ou vidéo sans date");
 
+  // La capture d'écran n'a pas de date : on la place à la main.
   await page.getByRole("link", { name: "Leur donner une date" }).click();
   await expect(page.getByRole("heading", { name: "Dates à fixer" })).toBeVisible();
   await page.getByRole("button", { name: "Photo Capture_ecran.png" }).click();
   await page.getByLabel("Heure").fill("18:30");
   await page.getByRole("group", { name: "Jours du voyage" }).getByRole("button", { name: /3 août/ }).click();
-  await expect(page.getByRole("status")).toContainText("Toutes les photos et vidéos ont une date.");
+  await expect(page.getByText("Toutes les photos et vidéos ont une date.")).toBeVisible();
 
   await page.goto("/voyages/photos-iphone/photos");
   await expect(page.getByTestId("sans-date")).toHaveCount(0);

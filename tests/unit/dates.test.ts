@@ -1,10 +1,15 @@
+import { readFileSync } from "node:fs";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/server/db/client";
 import { appareil, media, voyage } from "@/server/db/schema";
 import { genererId } from "@/server/domaine/crypto";
-import { enregistrerExifRelu, etatDates, fixerDates, instantDuJour, numeroDeFichier, suggererDates } from "@/server/domaine/dates";
+import { compterARelire, etatDates, fixerDates, instantDuJour, numeroDeFichier, relireDatesServeur, suggererDates } from "@/server/domaine/dates";
 import { galerie, urlsMembre } from "@/server/domaine/medias";
+import { StockageLocal } from "@/server/stockage/local";
 import { accepterInvitations, creerVoyage, inviter } from "@/server/domaine/voyages";
 import { baseDeTest, creerUtilisateur } from "./aide-db";
 
@@ -120,18 +125,32 @@ describe("dates à fixer (base)", () => {
     expect((await etatDates(db, urlsMembre("naxos"), ctxPaul)).sansDate.map((m) => [m.nom, m.modifiable])).toEqual([["IMG_1.HEIC", false]]);
   });
 
-  it("enregistre la date relue dans l'original (date réelle, position, appareil)", async () => {
-    const id = await ajouter("IMG_0004.HEIC");
-    await enregistrerExifRelu(db, ctx(), id, {
-      priseLocale: "2026-08-03T14:00:00",
-      decalageExifMinutes: 180,
-      latitude: 37.1,
-      longitude: 25.4,
-      appareil: { cle: "Apple|iPhone 15|", libelle: "Apple iPhone 15" },
-    });
-    const m = (await db.query.media.findFirst({ where: eq(media.id, id) }))!;
-    expect(m.priseUtc?.toISOString()).toBe("2026-08-03T11:00:00.000Z");
-    expect([m.dateEstimee, m.latitude, m.longitude]).toEqual([false, 37.1, 25.4]);
-    expect((await db.query.appareil.findFirst({ where: eq(appareil.id, m.appareilId!) }))!.libelle).toBe("Apple iPhone 15");
+  it("relit sur le serveur la date des originaux (HEIC d'iPhone, vidéo), une seule fois chacun", async () => {
+    const s = new StockageLocal(await mkdtemp(path.join(tmpdir(), "cc-dates-")), "http://localhost", "secret-de-test-secret-de-test-secret-de-test");
+    const fichier = async (nom: string, type: "photo" | "video" = "photo") => {
+      const id = await ajouter(nom);
+      await s.ecrire(id, readFileSync(path.join(__dirname, "../e2e/fixtures", nom)));
+      if (type === "video") await db.update(media).set({ type: "video" }).where(eq(media.id, id));
+      return id;
+    };
+    const heic = await fichier("IMG_0004.HEIC");
+    const video = await fichier("VID_0001.mp4", "video");
+    const capture = await fichier("Capture_ecran.png");
+    expect(await compterARelire(db, ctx())).toBe(3);
+
+    // Par lots : le navigateur relance tant qu'il en reste.
+    const r1 = await relireDatesServeur(db, s, ctx(), 2);
+    const r2 = await relireDatesServeur(db, s, ctx(), 2);
+    expect([r1.essayees, r1.restantes, r2.essayees, r2.restantes, r1.trouvees + r2.trouvees]).toEqual([2, 1, 1, 0, 2]);
+    expect(await relireDatesServeur(db, s, ctx(), 2)).toEqual({ essayees: 0, trouvees: 0, restantes: 0 });
+
+    const m = (id: string) => db.query.media.findFirst({ where: eq(media.id, id) });
+    const h = (await m(heic))!;
+    expect([h.priseUtc?.toISOString(), h.dateEstimee]).toEqual(["2026-08-03T11:00:00.000Z", false]);
+    expect((await db.query.appareil.findFirst({ where: eq(appareil.id, h.appareilId!) }))!.libelle).toBe("Apple iPhone 15");
+    expect((await m(video))!.priseUtc).not.toBeNull();
+    expect((await m(capture))!.priseUtc).toBeNull();
+    // La capture reste à dater à la main.
+    expect((await etatDates(db, urlsMembre("naxos"), ctx())).sansDate.map((x) => x.nom)).toEqual(["Capture_ecran.png"]);
   });
 });

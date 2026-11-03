@@ -119,6 +119,10 @@ export class StockageLocal implements Stockage {
     return new Uint8Array(await readFile(this.chemin(cle)));
   }
 
+  async lirePlage(cle: string, debut: number, fin: number) {
+    return (await this.lire(cle)).slice(debut, fin);
+  }
+
   // Le type MIME ne sert pas en local : les fichiers sont servis selon leur usage.
   async ecrire(cle: string, contenu: Uint8Array) {
     const cible = this.chemin(cle);
