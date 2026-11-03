@@ -140,7 +140,11 @@ export class FileEnvoi {
   private verrouEcran: WakeLockSentinel | null = null;
   private pret: Promise<void>;
 
-  constructor(private voyage: string) {
+  constructor(
+    private voyage: string,
+    /** Instant de la dernière remise à zéro du voyage : ce qui a été ajouté avant est oublié. */
+    private remiseAZero = 0,
+  ) {
     // Rendu serveur : rien à charger (IndexedDB n'existe que dans le navigateur).
     this.pret = typeof window === "undefined" ? Promise.resolve() : this.charger();
     if (typeof window !== "undefined") {
@@ -156,6 +160,11 @@ export class FileEnvoi {
     const db = await base();
     const tous = (await db.getAllFromIndex(MAGASIN, "voyage", this.voyage)) as Element[];
     for (const e of tous) {
+      // Voyage remis à zéro depuis : ni bilan, ni envoi en attente.
+      if (e.ajouteLe < this.remiseAZero) {
+        await db.delete(MAGASIN, e.id);
+        continue;
+      }
       // Un envoi interrompu par la fermeture de l'app redevient « en attente ».
       if (e.etat === "analyse" || e.etat === "envoi") e.etat = "attente";
       this.elements.set(e.id, e);
@@ -221,6 +230,21 @@ export class FileEnvoi {
     void navigator.storage?.persist?.();
     this.pomper();
     return { ajoutes: fichiers.length - ignores, ignores };
+  }
+
+  /** Le voyage a été remis à zéro : oublie tout ce qui a été ajouté avant (déjà chargé). */
+  async oublierAvant(instant: number) {
+    if (instant <= this.remiseAZero) return;
+    this.remiseAZero = instant;
+    await this.pret;
+    const db = await base();
+    for (const e of this.liste()) {
+      if (e.ajouteLe < instant) {
+        this.elements.delete(e.id);
+        await db.delete(MAGASIN, e.id);
+      }
+    }
+    this.notifier();
   }
 
   async retirerTermines() {
@@ -469,11 +493,11 @@ export class FileEnvoi {
 }
 
 const files = new Map<string, FileEnvoi>();
-export function fileEnvoi(voyage: string) {
+export function fileEnvoi(voyage: string, remiseAZero = 0) {
   let f = files.get(voyage);
   if (!f) {
-    f = new FileEnvoi(voyage);
+    f = new FileEnvoi(voyage, remiseAZero);
     files.set(voyage, f);
-  }
+  } else if (remiseAZero) void f.oublierAvant(remiseAZero);
   return f;
 }

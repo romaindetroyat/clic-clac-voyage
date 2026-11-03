@@ -218,8 +218,19 @@ test("dates : HEIC sans date relue automatiquement, capture d'écran datée à l
   await expect(page.getByRole("dialog")).toContainText("(date estimée)");
 });
 
-test("repartir de zéro : toutes les photos du voyage supprimées, le voyage reste", async ({ page }) => {
+test("date tirée du nom du fichier, puis repartir de zéro : photos et bilan d'envoi effacés", async ({ page }) => {
+  test.setTimeout(120_000);
   await seConnecterParCode(page, "romain@exemple.fr");
+  // Capture d'écran sans EXIF, mais datée dans son nom (4 août, 18 h 30).
+  await page.goto("/voyages/photos-iphone/importer");
+  await page.getByTestId("choisir-fichiers").setInputFiles([F("Screenshot_20260804-183000.png")]);
+  await attendreFinEnvoi(page, /^1 envoyé$/);
+  await page.goto("/voyages/photos-iphone/photos");
+  await page.getByRole("button", { name: "Photo Screenshot_20260804-183000.png" }).click();
+  await expect(page.getByRole("dialog")).toContainText("4 août");
+  await expect(page.getByRole("dialog")).toContainText("date estimée");
+  await page.keyboard.press("Escape");
+
   await page.goto("/voyages/photos-iphone/reglages");
   const zone = page.locator("section").filter({ has: page.getByRole("heading", { name: "Repartir de zéro" }) });
   await zone.getByLabel(/Pour vider le voyage/).fill("Photos iPhone");
@@ -227,4 +238,8 @@ test("repartir de zéro : toutes les photos du voyage supprimées, le voyage res
   await expect(zone.getByText(/supprimées\. Le voyage est prêt pour un nouvel import\./)).toBeVisible();
   await page.goto("/voyages/photos-iphone/photos");
   await expect(page.getByText("Aucune photo pour l’instant.")).toBeVisible();
+  // Le bilan d'envoi gardé dans le navigateur est remis à zéro.
+  await page.goto("/voyages/photos-iphone/importer");
+  await expect(page.getByTestId("choisir-fichiers")).toBeAttached();
+  await expect(page.getByTestId("bilan-envoi")).toHaveCount(0);
 });

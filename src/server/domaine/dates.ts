@@ -6,6 +6,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { appareil, media, voyage } from "../db/schema";
 import { lireExif, type SourceOctets } from "../../lib/import/exif";
+import { dateDepuisNom } from "../../lib/import/date-nom";
 import { dateMp4 } from "../../lib/import/mp4";
 import type { Stockage } from "../stockage/types";
 import { trouverOuCreerAppareil, type UrlMedia } from "./medias";
@@ -195,7 +196,8 @@ export const LOT_RELECTURE = 25;
 
 /**
  * Cherche la date de prise de vue dans les originaux des médias sans date (EXIF des photos,
- * HEIC compris ; atome « mvhd » des vidéos), sans les télécharger en entier. Chaque média n'est
+ * HEIC compris ; atome « mvhd » des vidéos), sans les télécharger en entier, puis à défaut
+ * dans le nom du fichier. Chaque média n'est
  * essayé qu'une fois. Traite un lot ; le navigateur relance tant qu'il en reste.
  */
 export async function relireDatesServeur(db: Db, stockage: Stockage, ctx: Ctx, lot = LOT_RELECTURE) {
@@ -203,6 +205,7 @@ export async function relireDatesServeur(db: Db, stockage: Stockage, ctx: Ctx, l
   const l = await db.query.media.findMany({ where: aRelire(ctx), limit: lot });
   let trouvees = 0;
   for (const m of l) {
+    const avant = trouvees;
     try {
       const taille = (await stockage.taille(m.cleOriginal)) ?? 0;
       const source = sourceDistante(stockage, m.cleOriginal, taille);
@@ -237,6 +240,16 @@ export async function relireDatesServeur(db: Db, stockage: Stockage, ctx: Ctx, l
       }
     } catch (err) {
       console.error(`Relecture de la date impossible (${m.id})`, err);
+    }
+    // Rien dans le fichier : la date écrite dans son nom, s'il y en a une.
+    const parNom = trouvees === avant ? dateDepuisNom(m.nomFichier) : null;
+    const utcParNom = parNom ? priseVersUtc(parNom.priseLocale, null, v.fuseau) : null;
+    if (parNom && utcParNom) {
+      await db
+        .update(media)
+        .set({ priseLocale: parNom.priseLocale, decalageExifMinutes: null, priseUtc: utcParNom, dateEstimee: true })
+        .where(eq(media.id, m.id));
+      trouvees++;
     }
     await db.update(media).set({ dateRelue: true }).where(eq(media.id, m.id));
   }

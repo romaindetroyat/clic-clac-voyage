@@ -19,6 +19,8 @@ export type Empreinte = {
   taille: number;
   instant: Date | null;
   copieCompressee?: boolean;
+  /** Date déduite (nom du fichier, saisie à la main) : seulement approchée. */
+  dateApprochee?: boolean;
   mime?: string;
   auteurId?: string | null;
 };
@@ -52,7 +54,8 @@ export function memePhoto(a: Empreinte, b: Empreinte): boolean {
     // Une copie compressée (WhatsApp…) n'a qu'une date approximative (heure du message) : large tolérance.
     // Deux originaux, eux, gardent l'heure exacte de prise de vue : à plus d'une seconde d'écart,
     // ce sont deux photos différentes (une rafale, par exemple), pas des doublons.
-    if (a.copieCompressee || b.copieCompressee) return ecart <= ECART_TEMPS_MS;
+    // Même chose pour une date déduite du nom du fichier.
+    if (a.copieCompressee || b.copieCompressee || a.dateApprochee || b.dateApprochee) return ecart <= ECART_TEMPS_MS;
     if (ecart >= ECART_ORIGINAUX_MS) return false;
     // Même seconde : un appareil en rafale prend plusieurs images par seconde, au même format,
     // de la même taille, envoyées par la même personne. Un vrai doublon vient d'ailleurs

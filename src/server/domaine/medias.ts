@@ -5,6 +5,7 @@
  */
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
+import { dateDepuisNom } from "../../lib/import/date-nom";
 import type { Db } from "../db/client";
 import { appareil, media, voyage, type Media, type VersionsWeb } from "../db/schema";
 import { cles, SEUIL_MULTIPART, TAILLE_MORCEAU, type Morceau, type Stockage } from "../stockage/types";
@@ -111,6 +112,11 @@ export async function preparerEnvoi(
   } else {
     const app = await trouverOuCreerAppareil(db, ctx.voyageId, ctx.userId, d.appareil);
     mediaId = genererId();
+    // Sans date dans le fichier (EXIF, vidéo) : celle écrite dans son nom, s'il y en a une
+    // (« WhatsApp Image 2026-08-03 at 14.32.10 », « IMG_20260803_143210 »…).
+    const parNom = d.priseLocale ? null : dateDepuisNom(d.nomFichier);
+    const priseLocale = d.priseLocale ?? parNom?.priseLocale ?? null;
+    const decalage = d.priseLocale ? (d.decalageExifMinutes ?? null) : null;
     await db.insert(media).values({
       id: mediaId,
       voyageId: ctx.voyageId,
@@ -126,9 +132,11 @@ export async function preparerEnvoi(
       largeur: d.largeur ?? null,
       hauteur: d.hauteur ?? null,
       dureeSecondes: d.dureeSecondes ?? null,
-      priseLocale: d.priseLocale ?? null,
-      decalageExifMinutes: d.decalageExifMinutes ?? null,
-      priseUtc: priseVersUtc(d.priseLocale, d.decalageExifMinutes, ctx.fuseau),
+      priseLocale,
+      decalageExifMinutes: decalage,
+      priseUtc: priseVersUtc(priseLocale, decalage, ctx.fuseau),
+      // Date déduite du nom : approchée (pour WhatsApp, c'est l'heure de réception, pas de prise de vue).
+      dateEstimee: !!parNom,
       latitude: d.latitude ?? null,
       longitude: d.longitude ?? null,
       nettete: d.nettete ?? null,
@@ -228,7 +236,7 @@ async function dedoublonner(db: Db, nouveau: Media): Promise<{ masque?: string; 
   if (nouveau.type !== "photo" || !nouveau.dhash) return {};
   const candidats = await db.query.media.findMany({
     where: and(eq(media.voyageId, nouveau.voyageId), eq(media.type, "photo"), eq(media.statut, "pret"), isNull(media.doublonDe)),
-    columns: { id: true, dhash: true, largeur: true, hauteur: true, taille: true, priseUtc: true, copieCompressee: true, mime: true, auteurId: true },
+    columns: { id: true, dhash: true, largeur: true, hauteur: true, taille: true, priseUtc: true, dateEstimee: true, copieCompressee: true, mime: true, auteurId: true },
   });
   const empreinte = (e: (typeof candidats)[number]): Empreinte => ({
     id: e.id,
@@ -237,6 +245,7 @@ async function dedoublonner(db: Db, nouveau: Media): Promise<{ masque?: string; 
     hauteur: e.hauteur,
     taille: e.taille,
     instant: e.priseUtc,
+    dateApprochee: e.dateEstimee,
     copieCompressee: e.copieCompressee,
     mime: e.mime,
     auteurId: e.auteurId,

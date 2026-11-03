@@ -45,6 +45,12 @@ describe("empreintes perceptuelles", () => {
     expect(memePhoto(original, { ...copieWhatsapp, instant: new Date("2026-08-03T12:01:00Z") })).toBe(true);
   });
 
+  it("une date tirée du nom du fichier (approchée) n'empêche pas de reconnaître la même photo", () => {
+    const copieDatee = { ...copieWhatsapp, copieCompressee: false, dateApprochee: true, instant: new Date("2026-08-03T09:00:00Z") };
+    expect(memePhoto(original, copieDatee)).toBe(true);
+    expect(memePhoto(original, { ...copieDatee, dateApprochee: false })).toBe(false);
+  });
+
   it("distingue deux photos différentes", () => {
     expect(memePhoto(original, { ...copieWhatsapp, dhash: "0f1e2d3c4b5a6978" })).toBe(false);
     expect(memePhoto(original, { ...copieWhatsapp, largeur: 1600, hauteur: 900 })).toBe(false); // 16/9 ≠ 4/3

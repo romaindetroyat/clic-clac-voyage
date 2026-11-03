@@ -64,7 +64,7 @@ describe("RGPD : suppression d'un voyage et d'un compte", () => {
     expect(await db.$count(commentaire, undefined)).toBe(0);
     expect(await db.$count(episode, undefined)).toBe(0);
     expect(await db.$count(participant, undefined)).toBe(3); // Romain et Léa dans « Partagé », Romain dans « Autre »
-    expect(await db.query.voyage.findFirst({ where: (t, { eq }) => eq(t.id, partage) })).toBeDefined();
+    expect((await db.query.voyage.findFirst({ where: (t, { eq }) => eq(t.id, partage) }))?.remiseAZeroLe).toBeInstanceOf(Date);
     expect(await stockage.taille(q.cle)).toBe(3);
   });
 

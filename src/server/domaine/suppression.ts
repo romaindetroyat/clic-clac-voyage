@@ -47,6 +47,7 @@ export async function viderVoyage(db: Db, stockage: Stockage, voyageId: string) 
     await tx.delete(livre).where(eq(livre.voyageId, voyageId));
     await tx.delete(appareil).where(eq(appareil.voyageId, voyageId));
     await tx.delete(rafaleIa).where(eq(rafaleIa.voyageId, voyageId));
+    await tx.update(voyage).set({ remiseAZeroLe: new Date() }).where(eq(voyage.id, voyageId));
   });
   return { medias, fichiers };
 }
