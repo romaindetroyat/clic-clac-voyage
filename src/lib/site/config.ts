@@ -62,7 +62,7 @@ export const SECTIONS = {
   couverture: "Couverture",
   presentation: "Présentation",
   carte: "Carte de l’itinéraire",
-  episodes: "Épisodes",
+  episodes: "Carnet (chapitres)",
   galerie: "Galerie complète",
   chiffres: "Chiffres du voyage",
   participants: "Participants",
@@ -73,6 +73,7 @@ export type IdSection = keyof typeof SECTIONS;
 export const IDS_SECTIONS = Object.keys(SECTIONS) as IdSection[];
 
 export const PRESENTATIONS = {
+  carnet: "Carnet (mise en page automatique)",
   mosaique: "Mosaïque",
   "plein-ecran": "Plein écran",
   defilement: "Défilement horizontal",
@@ -105,6 +106,8 @@ export const schemaConfigSite = z.object({
       reactions: z.boolean().default(true),
     })
     .default({ legendes: true, auteurs: true, commentaires: true, reactions: true }),
+  // Chapitres du carnet : par jour, par épisode (étapes, lieux), ou « auto » (épisodes s'il y en a).
+  organisation: z.enum(["auto", "jours", "episodes"]).default("auto"),
   // Journal en direct : « auto » l'active pendant les dates du voyage.
   journal: z.enum(["auto", "oui", "non"]).default("auto"),
 });
@@ -122,6 +125,7 @@ export function configParDefaut(theme: IdTheme = "neutre-elegant"): ConfigSite {
     motDeLaFin: "",
     sections: IDS_SECTIONS.map((id) => ({ id, actif: id !== "galerie" })),
     afficher: { legendes: true, auteurs: true, commentaires: true, reactions: true },
+    organisation: "auto",
     journal: "auto",
   };
 }

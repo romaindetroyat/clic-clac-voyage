@@ -249,6 +249,17 @@ export function ReglagesSite({
         </label>
       </Groupe>
 
+      <Groupe titre="Carnet de voyage" aide="Le carnet raconte le voyage en chapitres : une grande photo d’ouverture, le récit, puis les photos mises en page avec leurs légendes et vos commentaires.">
+        <label className="block space-y-1.5">
+          <span className="etiquette">Un chapitre par…</span>
+          <select className="champ" value={c.organisation} onChange={(e) => maj({ organisation: e.target.value as ConfigSite["organisation"] })}>
+            <option value="auto">Automatique : épisode s’il y en a, sinon jour</option>
+            <option value="jours">Jour (Jour 1, Jour 2…)</option>
+            <option value="episodes">Épisode (étapes, lieux), avec ses jours</option>
+          </select>
+        </label>
+      </Groupe>
+
       <Groupe titre="Sections" aide="Cochez les sections à afficher et choisissez leur ordre.">
         <ol className="divide-y divide-filet rounded-lg border border-filet">
           {c.sections.map((s, i) => (

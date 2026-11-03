@@ -144,6 +144,27 @@ body {
 .s-texte p + p {
   margin-top: 0.9em;
 }
+/* Carnet : lettrine en tête de récit, citations, défilement doux vers les chapitres */
+.s-lettrine > p:first-child::first-letter {
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  font-family: var(--s-police-titre);
+  font-size: 3.6em;
+  line-height: 0.82;
+  color: var(--s-accent);
+}
+.s-citation {
+  text-wrap: balance;
+}
+.site h3,
+.site h4 {
+  text-wrap: balance;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.site) {
+    scroll-behavior: smooth;
+  }
+}
 
 /* Visionneuse du site (script commun au site en ligne et à l'export .zip) */
 .sv {

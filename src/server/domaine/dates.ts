@@ -20,7 +20,10 @@ type Ctx = { voyageId: string; userId: string; estAdmin: boolean };
 export const ECART_UNE_VOISINE = 30;
 
 export type Numerotee = { id: string; nomFichier: string; auteurId: string | null; instant: Date | null };
-export type Suggestion = { id: string; instant: Date; raison: string };
+/** `sure` : encadrée par deux voisines prises à moins de 3 h d'écart (appliquée sans demander). */
+export type Suggestion = { id: string; instant: Date; raison: string; sure?: boolean };
+
+export const ECART_SUR_MS = 3 * 3600 * 1000;
 
 /** « IMG_1234.HEIC » → { serie: "img_", numero: 1234 } ; null si le nom ne se termine pas par un numéro. */
 export function numeroDeFichier(nom: string): { serie: string; numero: number } | null {
@@ -55,7 +58,8 @@ export function suggererDates(sansDate: Numerotee[], dates: Numerotee[]): Sugges
     if (avant && apres && apres.instant >= avant.instant) {
       const f = (n.numero - avant.numero) / (apres.numero - avant.numero);
       const t = avant.instant.getTime() + f * (apres.instant.getTime() - avant.instant.getTime());
-      res.push({ id: s.id, instant: new Date(Math.round(t / 1000) * 1000), raison: `entre ${avant.nom} et ${apres.nom}` });
+      const sure = apres.instant.getTime() - avant.instant.getTime() <= ECART_SUR_MS;
+      res.push({ id: s.id, instant: new Date(Math.round(t / 1000) * 1000), raison: `entre ${avant.nom} et ${apres.nom}`, ...(sure ? { sure } : {}) });
     } else {
       const proche = [avant, apres]
         .filter((x): x is NonNullable<typeof x> => !!x && Math.abs(x.numero - n.numero) <= ECART_UNE_VOISINE)
@@ -253,6 +257,22 @@ export async function relireDatesServeur(db: Db, stockage: Stockage, ctx: Ctx, l
     }
     await db.update(media).set({ dateRelue: true }).where(eq(media.id, m.id));
   }
-  if (trouvees) await rangerNonClasses(db, ctx.voyageId);
-  return { essayees: l.length, trouvees, restantes: await compterARelire(db, ctx) };
+  const restantes = await compterARelire(db, ctx);
+  // Tout est relu : on date d'office ce qui est sûrement encadré par deux voisines.
+  if (!restantes) trouvees += await appliquerSuggestionsSures(db, ctx);
+  else if (trouvees) await rangerNonClasses(db, ctx.voyageId);
+  return { essayees: l.length, trouvees, restantes };
+}
+
+/**
+ * Applique les dates déduites des voisines quand elles sont sûres : le fichier est encadré, dans
+ * sa série (IMG_1233 → IMG_1236, même auteur), par deux photos prises à moins de 3 h d'écart.
+ */
+export async function appliquerSuggestionsSures(db: Db, ctx: Ctx) {
+  const toutes = await lignesVisibles(db, ctx.voyageId);
+  const sures = suggererDates(
+    toutes.filter((l) => !l.instant && peutModifier(ctx, l.auteurId)),
+    toutes.filter((l) => l.instant),
+  ).filter((s) => s.sure);
+  return sures.length ? fixerDates(db, ctx, sures) : 0;
 }
