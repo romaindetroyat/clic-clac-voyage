@@ -136,12 +136,13 @@ describe("dates à fixer (base)", () => {
     const heic = await fichier("IMG_0004.HEIC");
     const video = await fichier("VID_0001.mp4", "video");
     const capture = await fichier("Capture_ecran.png");
-    expect(await compterARelire(db, ctx())).toBe(3);
+    const nomDate = await fichier("Screenshot_20260804-183000.png");
+    expect(await compterARelire(db, ctx())).toBe(4);
 
     // Par lots : le navigateur relance tant qu'il en reste.
     const r1 = await relireDatesServeur(db, s, ctx(), 2);
     const r2 = await relireDatesServeur(db, s, ctx(), 2);
-    expect([r1.essayees, r1.restantes, r2.essayees, r2.restantes, r1.trouvees + r2.trouvees]).toEqual([2, 1, 1, 0, 2]);
+    expect([r1.essayees, r1.restantes, r2.essayees, r2.restantes, r1.trouvees + r2.trouvees]).toEqual([2, 2, 2, 0, 3]);
     expect(await relireDatesServeur(db, s, ctx(), 2)).toEqual({ essayees: 0, trouvees: 0, restantes: 0 });
 
     const m = (id: string) => db.query.media.findFirst({ where: eq(media.id, id) });
@@ -150,6 +151,8 @@ describe("dates à fixer (base)", () => {
     expect((await db.query.appareil.findFirst({ where: eq(appareil.id, h.appareilId!) }))!.libelle).toBe("Apple iPhone 15");
     expect((await m(video))!.priseUtc).not.toBeNull();
     expect((await m(capture))!.priseUtc).toBeNull();
+    // Sans EXIF mais datée dans son nom : 18 h 30 à Athènes.
+    expect((await m(nomDate))!.priseUtc?.toISOString()).toBe("2026-08-04T15:30:00.000Z");
     // La capture reste à dater à la main.
     expect((await etatDates(db, urlsMembre("naxos"), ctx())).sansDate.map((x) => x.nom)).toEqual(["Capture_ecran.png"]);
   });

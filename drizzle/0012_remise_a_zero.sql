@@ -1,0 +1,1 @@
+ALTER TABLE "voyage" ADD COLUMN "remise_a_zero_le" timestamp with time zone;

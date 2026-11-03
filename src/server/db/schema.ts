@@ -107,6 +107,8 @@ export const voyage = pgTable("voyage", {
   dateFin: date("date_fin"),
   // Fuseau par défaut des photos sans fuseau dans leur EXIF (IANA, ex. « Europe/Athens »).
   fuseau: text("fuseau").notNull().default("Europe/Paris"),
+  // « Repartir de zéro » : les listes d'envoi gardées dans les navigateurs oublient ce qui précède.
+  remiseAZeroLe: timestamp("remise_a_zero_le", { withTimezone: true }),
   // Configuration du site (thème, sections…) : voir src/lib/site/config.ts.
   site: jsonb("site").$type<Record<string, unknown>>(),
   creePar: text("cree_par").references(() => user.id, { onDelete: "set null" }),

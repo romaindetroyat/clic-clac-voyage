@@ -40,8 +40,8 @@ const LIBELLE: Record<Element["etat"], string> = {
   erreur: "Erreur",
 };
 
-export function Importeur({ voyage }: { voyage: string }) {
-  const file = useMemo(() => fileEnvoi(voyage), [voyage]);
+export function Importeur({ voyage, remiseAZero = 0 }: { voyage: string; remiseAZero?: number }) {
+  const file = useMemo(() => fileEnvoi(voyage, remiseAZero), [voyage, remiseAZero]);
   const [elements, setElements] = useState<Element[]>([]);
   const [survol, setSurvol] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
