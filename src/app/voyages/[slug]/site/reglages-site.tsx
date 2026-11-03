@@ -360,7 +360,7 @@ export function ReglagesSite({
         {modifie ? <p className="text-sm text-encre-douce">Enregistrez vos réglages avant d’exporter.</p> : null}
       </Groupe>
 
-      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-filet bg-papier/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 z-30 -mx-4 flex flex-wrap items-center gap-3 border-t border-filet bg-papier/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <button type="button" className="bouton" onClick={enregistrer} disabled={!modifie || enCours}>
           {enCours ? "Enregistrement…" : "Enregistrer"}
         </button>

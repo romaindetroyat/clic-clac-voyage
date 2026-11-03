@@ -274,7 +274,7 @@ function EnTeteChapitre({ c }: { c: Chapitre }) {
     <div className="mx-auto max-w-5xl space-y-2">
       <p className="text-sm font-medium uppercase tracking-[0.16em] opacity-90">
         {c.surtitre}
-        {c.dates ? <span className="normal-case tracking-normal"> · {c.dates}</span> : null}
+        {c.dates && c.dates.toLowerCase() !== c.titre.toLowerCase() ? <span className="normal-case tracking-normal"> · {c.dates}</span> : null}
       </p>
       <h3 className="text-4xl leading-tight sm:text-6xl">{c.titre}</h3>
       {c.lieu ? <p className="text-lg opacity-90">{c.lieu}</p> : null}

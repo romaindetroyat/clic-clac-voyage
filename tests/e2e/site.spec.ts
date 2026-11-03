@@ -58,7 +58,9 @@ test("site du voyage : réglages, lien secret, carte arrondie, visionneuse, hors
   await expect(pl.getByText("Un été entre amis, d’île en île.")).toBeVisible();
   await expect(pl.getByRole("heading", { name: "L’itinéraire" })).toBeVisible();
   await expect(pl.getByRole("img", { name: "Itinéraire en 2 étapes" })).toBeVisible();
-  await expect(pl.getByText("Épisode 3")).toBeVisible();
+  // Carnet : sommaire en vignettes, un chapitre par épisode, ouvert par une grande photo.
+  await expect(pl.getByRole("navigation", { name: "Sommaire" }).getByRole("link")).toHaveCount(3);
+  await expect(pl.locator("#episode-3 h3")).toBeVisible();
   await expect(pl.getByRole("heading", { name: "Le voyage en chiffres" })).toBeVisible();
 
   // Aucune position précise dans le HTML.

@@ -117,7 +117,7 @@ function parJour(medias: MediaSite[], fuseau: string) {
 
 /** Sort la photo d'ouverture du fil (elle est déjà montrée en grand en tête du chapitre). */
 function sansOuverture(medias: MediaSite[], ouverture: MediaSite | null) {
-  return medias.length > 3 && ouverture ? medias.filter((m) => m !== ouverture) : medias;
+  return ouverture ? medias.filter((m) => m !== ouverture) : medias;
 }
 
 export type Organisation = "auto" | "jours" | "episodes";
