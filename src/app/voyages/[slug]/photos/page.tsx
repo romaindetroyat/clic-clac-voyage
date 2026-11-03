@@ -27,6 +27,7 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
     );
   }
   const photos = medias.filter((m) => m.type === "photo").length;
+  const sansDate = medias.filter((m) => !m.instant).length;
   return (
     <div className="space-y-4">
       <p className="text-sm text-encre-douce" data-testid="compte-medias">
@@ -34,6 +35,16 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
         {medias.length - photos ? ` · ${medias.length - photos} vidéo${medias.length - photos > 1 ? "s" : ""}` : ""}, dans
         l’ordre chronologique
       </p>
+      {sansDate ? (
+        <div className="carte flex flex-wrap items-center gap-3" data-testid="sans-date">
+          <p className="text-sm">
+            {sansDate} photo{sansDate > 1 ? "s ou vidéos" : " ou vidéo"} sans date : hors des épisodes, du site et du livre.
+          </p>
+          <Link href={`/voyages/${voyage.slug}/photos/dates`} className="bouton-discret">
+            Leur donner une date
+          </Link>
+        </div>
+      ) : null}
       {sansApercu ? <ApercusManquants slug={voyage.slug} nombre={sansApercu} /> : null}
       <Galerie medias={medias} slug={voyage.slug} utilisateurId={utilisateur.id} estAdmin={estAdmin} />
     </div>

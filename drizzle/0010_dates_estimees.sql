@@ -1,0 +1,1 @@
+ALTER TABLE "media" ADD COLUMN "date_estimee" boolean DEFAULT false NOT NULL;

@@ -129,7 +129,7 @@ export function Visionneuse({
       >
         <div className="flex items-center justify-between gap-3 p-3 text-sm">
           <span className="truncate first-letter:uppercase">
-            {m.instant ? `${fmtJour.format(new Date(m.instant))}, ${fmtHeure.format(new Date(m.instant))}` : "Sans date"}
+            {m.instant ? `${fmtJour.format(new Date(m.instant))}, ${fmtHeure.format(new Date(m.instant))}${m.dateEstimee ? " (date estimée)" : ""}` : "Sans date"}
             {m.auteur ? ` · ${m.auteur}` : ""}
           </span>
           <div className="flex shrink-0 items-center">

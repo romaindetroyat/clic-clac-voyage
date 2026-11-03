@@ -40,7 +40,10 @@ export async function lireExif(f: Blob): Promise<Exif> {
   const vide: Exif = { priseLocale: null, decalageExifMinutes: null, latitude: null, longitude: null, appareil: null };
   try {
     const exifr = (await import("exifr")).default;
-    const t = await exifr.parse(f, {
+    // HEIC (iPhone) : exifr échoue sur ces fichiers ; on lui donne directement le bloc TIFF.
+    const { exifHeif } = await import("./heif");
+    const source = (await exifHeif(f).catch(() => null)) ?? f;
+    const t = await exifr.parse(source, {
       tiff: true,
       exif: true,
       gps: true,
@@ -51,7 +54,7 @@ export async function lireExif(f: Blob): Promise<Exif> {
       translateValues: false,
     });
     if (!t) return vide;
-    const gps = await exifr.gps(f).catch(() => null);
+    const gps = await exifr.gps(source).catch(() => null);
     const marque = typeof t.Make === "string" ? t.Make.trim() : "";
     const modele = typeof t.Model === "string" ? t.Model.trim() : "";
     const serie = String(t.BodySerialNumber ?? t.SerialNumber ?? t.InternalSerialNumber ?? "").trim();
