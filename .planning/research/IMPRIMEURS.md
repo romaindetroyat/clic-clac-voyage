@@ -4,6 +4,444 @@
 > Légende : **[V]** = vérifié sur la source citée à cette date. **[S]** = source secondaire (forum, tiers, ancien guide). **[NV]** = non vérifié, à confirmer avant de coder la règle.
 > Toutes les valeurs servent de **point de départ** pour les fiches imprimeurs de l'app. Chaque fiche doit ensuite être revérifiée avec l'action « mettre à jour avec l'IA » et validée par l'administrateur.
 
+## 0. Revérification site par site du 3 novembre 2026 (prioritaire sur la suite)
+
+Ces corrections sont appliquées dans `src/lib/imprimeurs/catalogue.ts` (champ `livraisonFrance` sur chaque fiche, Flexilivre ajouté, Pumbo non retenu faute de prix publiés).
+
+**Statuts :**
+- **V** : valeur lue sur le site officiel le 3 novembre 2026. Cela inclut leur centre d'aide (Zendesk ou Intercom).
+- **S** : source secondaire (blog, test, résumé d'un moteur de recherche).
+- **NV** : non trouvé ou non vérifié.
+
+**Limites de la recherche :**
+- Plusieurs prix et frais de port ne s'affichent que dans un configurateur JavaScript. C'est le cas chez Saal, CEWE, Pixartprinting, Blurb (port), Pumbo et Flexilivre (port).
+- Gelato et Mixam renvoient une erreur 403 aux outils de lecture.
+- Lulu, Gelato et Prodigi affichent leurs prix seulement dans un calculateur ou après connexion.
+- Ces valeurs restent donc NV. Pour Saal, j'ai trouvé le service interne qui calcule les frais de port. Je n'ai pas continué à l'interroger directement , donc ces frais restent S.
+
+---
+
+### 0.1 Saal Digital (Allemagne)
+
+**Livraison en France :** oui. **V**, https://www.saal-digital.fr/service/frais-dexpedition-delai-de-livraison/
+- La France figure dans la liste des pays du tableau des délais.
+- Transporteurs cités : Colis Privé, DHL, DHL Express, Transoflex, UPS.
+
+**Délais pour la France, commande d'un seul produit** (tableau officiel du 03/11/2026, **V**) :
+
+| Produit | Fabrication | Livraison standard | Livraison express |
+|---|---|---|---|
+| Livre photo standard | 1 à 2 j ouvrés | 4 à 5 j ouvrés | 1 à 2 j ouvrés |
+| Professional Line | 2 à 3 j ouvrés | 4 à 5 j ouvrés | 1 à 2 j ouvrés |
+| 15×15, 15×21, 21×15 | 3 j ouvrés | 4 à 5 j ouvrés | 1 à 2 j ouvrés |
+
+**Frais de port :**
+- Aucun montant publié sur une page statique (NV officiellement).
+- 5,99 € « quel que soit le format » en standard Colis Privé, DHL en express (**S**, test d'octobre 2025 : https://virusphoto.com/test-complet-saal-digital-livre-photo-grand-format-avis-detaille/).
+- Pas de douane : envoi intra-UE.
+
+**Commande à partir d'un PDF : oui.** **V**, https://www.saal-digital.fr/service/infos-pro/telechargez-votre-pdf-dans-la-boutique-en-ligne/
+- Procédure : boutique, puis Livre photo, puis « Concevoir », puis option « PDF Upload ».
+- Deux PDF : couverture et intérieur.
+- Pas de PDF pour les couvertures spéciales.
+- Spécifications **V** (https://www.saal-digital.com/service/professional-zone/create-your-files-in-indesign) :
+  - sRGB IEC61966-2.1 ;
+  - intérieur en planches (une page du PDF = une double page) ;
+  - pas de traits de coupe ;
+  - environ 1 cm de marge de sécurité ;
+  - le fond perdu et le dos sont donnés par les gabarits (valeur en mm : NV).
+
+**Produits et prix TTC hors port** (**V**, https://www.saal-digital.fr/livre-photo/) :
+- Reliure à plat (layflat) offerte.
+- Papier photo Fujifilm 368 g/m², brillant, mat ou satiné, ou papier impression mat.
+- Pages : 26 à 160, par 2.
+
+| Format | Prix « dès » |
+|---|---|
+| 21×28 (format réel 21,5×27,5) | 22,99 € (promo jusqu'au 09/11), prix catalogue 33,99 € (**V**, https://www.saal-digital.fr/album-photo/album-photo-21-x-28/) |
+| 28×28 | 29,99 € |
+| 28×19 | 19,99 € |
+| 19×19 | 16,99 € |
+| Pro Line 30×30 | 99,99 € (26 à 130 pages, **V**, https://www.saal-digital.fr/album-photo/album-photo-30-x-30-professional-line/) |
+
+- Pro Line : remise −20 % dès 26 pages, −25 % dès 70, −30 % dès 100 (**V**).
+- Prix de la double page supplémentaire : **non trouvé** (configurateur seulement).
+- Remise par quantité : NV (page « Commande en volume »).
+
+**Note :** 4,4/5, 5 077 avis, saal-digital.fr. **V**, https://fr.trustpilot.com/review/www.saal-digital.fr
+
+---
+
+### 0.2 Blurb (États-Unis)
+
+**Livraison en France :** oui. La France figure dans la liste des pays desservis. **V**, https://support.blurb.com/hc/en-us/articles/207794346 (mis à jour le 28/09/2026)
+- Tarif de port : calculateur seulement (NV). Un blog annonce « livraison offerte dès 70 € » : **S** peu fiable.
+- Fabrication : 4 à 5 jours ouvrés, sans possibilité d'accélérer. **V**, https://www.blurb.fr/shipping
+
+**Douane et TVA** (**V**, https://support.blurb.com/hc/en-us/articles/207794426, mis à jour le 03/11/2026, et https://support.blurb.com/hc/en-us/articles/207794476) :
+- Les livres photo et les Layflat Premium Lustre sont imprimés dans l'UE : pas de droits de douane.
+- Les autres **Layflat sont imprimés aux États-Unis** : droits possibles, payés par le destinataire.
+- La TVA est collectée par Blurb.
+
+**Commande à partir d'un PDF : oui (« PDF to Book »).** **V**, https://support.blurb.com/hc/en-us/articles/207792946 (28/10/2026)
+- Pages simples, pas de doubles pages. Nombre de pages pair.
+- Couverture séparée, ou un seul PDF accepté.
+- Dimensions données par l'outil de calcul de format de Blurb.
+- **CMJN recommandé, sRGB accepté**, noir 100 % K, pas de tons directs, pas de traits de coupe.
+- Taille maximale : 2 Go pour les pages, 90 Mo pour la couverture.
+- Zone de sécurité ≥ 0,25" (6,35 mm). **V**, article 360000087206
+- Aucune norme PDF/X n'est imposée pour un PDF ordinaire.
+
+**Prix en € (V, https://www.blurb.fr/pricing).** Ils sont cohérents avec un montant TTC à 20 % (38,40 = 32,00 × 1,2).
+
+| Produit | Prix | Page supplémentaire |
+|---|---|---|
+| 20×25 rigide, papier Standard 118 g | 38,40 € | 0,48 € |
+| 20×25 rigide, papier Premium 148 g | 44,40 € | 0,54 € |
+| 30×30 rigide, papier Standard | 61,20 € | 0,64 € |
+| 30×30 rigide, papier Premium | 72,00 € | 0,72 € |
+| Layflat 20×25 | 116,57 € | 3,74 € |
+| Layflat 30×30 | 159,35 € | 4,81 € |
+
+- Papiers d'art : Mohawk Eggshell et proPhoto Pearl.
+- Pages, **V** (article 7607055286541) : Standard 20 à 440 ; Premium et Mohawk 20 à 240 ; Layflat 20 à 110.
+- Nombre de pages inclus dans le prix de base : 20 (**S**, déduit du minimum).
+- Remises de quantité, livres photo : −20 % de 10 à 49 exemplaires, −25 % de 50 à 99 (**V**, https://support.blurb.com/hc/en-us/articles/207813766).
+
+**Note :** 2,3/5, 194 avis, blurb.fr (**V**, https://fr.trustpilot.com/review/blurb.fr). Sur blurb.co.uk : 2,3/5, 892 avis.
+
+---
+
+### 0.3 Fotofabriek (Pays-Bas) — la livraison en France est possible, mais hors du tunnel de commande
+
+**Livraison en France :** oui, avec une procédure manuelle. **V**, https://www.fotofabriek.nl/faq/pakketje-naar-buitenland/
+- Seuls la Belgique, l'Allemagne et l'Autriche se saisissent directement.
+- Pour la France :
+  1. commander en choisissant « retrait chez Fotofabriek » ;
+  2. envoyer un message au service client par chat avec le numéro de commande ;
+  3. Fotofabriek calcule le port au tarif PostNL et envoie une demande de paiement par e-mail ;
+  4. l'envoi part après paiement.
+- Tarif et délai pour la France : NV.
+- Tarifs des Pays-Bas et de la Belgique (**V**, https://www.fotofabriek.nl/verzendtarieven) :
+  - tarif D : 5,45 € (+1 € par produit supplémentaire) ;
+  - tarif E : 6,45 € (+2 €) ;
+  - gratuit dès 50 €.
+- La plupart des produits partent le jour même s'ils sont commandés avant 11 h (**V**, /levertijden).
+
+**Commande à partir d'un PDF : oui (« PDF-uploader »).** **V**, https://www.fotofabriek.nl/faq/bestellen-via-pdf-uploader/
+- Deux PDF : couverture et intérieur, en pages simples.
+- sRGB.
+- Les dimensions des spécifications incluent déjà le fond perdu.
+- Textes à au moins 20 mm à l'intérieur de la ligne de fond perdu.
+- Charnière de 10 mm de part et d'autre du dos. Pas de traits de coupe.
+- Incohérence : l'exemple de la FAQ (60 pages, dos de 14 mm) ne correspond pas à la table des dos (48 à 60 pages = 8 mm).
+
+**Prix TTC** (**V**, https://www.fotofabriek.nl/prijslijst/). « Chaque livre commence à 24 pages » (**V**, /producten/fotoboeken/hardcover/).
+
+| Produit | Prix de base | « Extra pagina » | Tarif de port |
+|---|---|---|---|
+| A4 rigide, portrait ou paysage | 29,99 € | 0,65 € | D |
+| 30×30 rigide | 44,99 € | 1,10 € | E |
+| A4 à plat (papier photo 380 g, 24 à 140 p.) | 35,99 € | 0,90 € | E |
+| 30×30 à plat | 54,99 € | 1,40 € | E |
+
+- L'unité du prix « extra pagina » (page ou feuillet) n'est pas précisée.
+- Rigide : jusqu'à « ruim 400 pagina's » selon la page produit, mais la table des dos s'arrête à 200.
+
+**Note :** 4,5/5, 1 393 avis. **V**, https://www.trustpilot.com/review/fotofabriek.nl
+
+---
+
+### 0.4 Pixartprinting (Italie)
+
+**Livraison en France :** oui (site .fr). **V**, https://support.pixartprinting.com/hc/fr/articles/360018431059
+- Le port est calculé selon le poids, le volume et la combinaison de produits, et ne s'affiche qu'au panier.
+- Le prix varie aussi selon la date de livraison choisie.
+- TVA du pays de destination pour un particulier. **V**, /articles/17469089487122
+- Montants : NV.
+
+**Commande à partir d'un PDF : oui.** **V**, https://www.pixartprinting.fr/impression-revues-catalogues-livres/finition-couverture-rigide/
+- Un seul PDF (couverture puis intérieur) **ou** deux PDF séparés.
+- PDF à l'échelle 1:1, **CMJN Fogra 39**, 300 dpi, sans traits de coupe.
+- Fond perdu de 3 mm pour l'intérieur. Couverture préparée sur le gabarit fourni.
+- Textes à 15 mm du côté de la reliure et à 5 mm des autres bords.
+
+**Produits :** **V**
+- Formats : A4, A5, 21×21, 16,5×24, 30×30 cm, ou format personnalisé.
+- Couverture : carton de 2 mm couvert de couché mat 170 g ; pelliculage brillant, mat ou soft touch ; options dorure or ou argent, vernis 3D.
+- Papiers intérieurs : Classic Demimatt 170, Classic Gloss 170, Extraprint 160, Rembrandt 120, Underwood 170, Recyclé 120.
+- Impression offset/numérique sur papier couché, **pas de papier photo**.
+- Pages minimum/maximum et pas, prix : **non trouvés**.
+
+**Note :** 4,4/5, 3 402 avis. **V**, https://www.trustpilot.com/review/pixartprinting.fr
+
+---
+
+### 0.5 CEWE (Allemagne) — pas de PDF sur cewe.fr
+
+**Pas de dépôt PDF sur cewe.fr :**
+- Le plan du site cewe.fr (556 adresses, relu le 03/11/2026) ne contient aucune page PDF ou InDesign.
+- Les adresses équivalentes à celles des autres pays renvoient 404 (`/livre-photo-cewe/indesign.html`, `/pdf2book.html`).
+- Statut : **V** par absence.
+
+**Voie PDF ailleurs :** elle existe en français sur **cewe.lu/fr** et **cewe.kruidvat.be/fr** (V, https://www.cewe.lu/fr/livre-photo-cewe/indesign.html).
+- Il faut le générateur de gabarits InDesign de CEWE et le préréglage d'export, puis déposer deux PDF.
+- Un PDF produit hors d'InDesign n'est donc pas pris en charge directement.
+- Livraison en France depuis ces sites : **NV**.
+
+**Livraison en France (cewe.fr) :** **V**, https://www.cewe.fr/service/modes-de-livraison.html
+- Standard Colissimo ou Colis Privé en 48 h ; point relais Colissimo en 48 à 72 h ; express Chronopost ou Colis Privé en 24 h.
+- Tarifs : NV (chargés en JavaScript).
+
+**Prix :** NV (liste de prix dynamique).
+
+**Remise par quantité affichée :** environ −10 % pour 2 livres, −15 % pour 3, −20 % dès 5 (V, page A4 portrait).
+
+**Note :** 4,5/5, 129 844 avis. **V**, https://www.trustpilot.com/review/www.cewe.fr
+
+---
+
+### 0.6 Lulu (États-Unis)
+
+**Livraison en France :** oui.
+- Lulu a des sites d'impression notamment en **France**. Le livre est fabriqué par l'imprimeur le plus proche « whenever possible ».
+- Fabrication : 3 à 5 jours ouvrés ; plus long pour un livre rigide.
+- **V**, https://help.lulu.com/en/support/solutions/articles/64000255307
+- TVA française collectée par Lulu (OSS FR90524670213, IOSS IM2500024850). **V**, https://help.lulu.com/en/support/solutions/articles/64000255321
+- Tarif de port : calculateur seulement (NV).
+
+**Commande à partir d'un PDF : oui, par le site et par l'API.** Spécifications déjà au catalogue, statut V.
+
+**Produits :** **V**, https://www.lulu.com/create/photo-books
+- Paysage 11×8,5" (279×216 mm) rigide.
+- Carré 8,5×8,5" (216×216 mm) rigide.
+- Petit paysage 9×7" souple.
+- Papier 80#, « dès 14,76 USD » (page probablement ancienne).
+- Couverture rigide (casewrap) : 24 à 800 pages (**V**, help Lulu « paper stocks »). Maximum propre au livre photo : NV.
+- Pas de format portrait ni de 30×30.
+
+**Note :** 4,5/5, 6 553 avis. **V**
+
+---
+
+### 0.7 Gelato (Norvège, réseau d'impression à la demande)
+
+**Commande :** compte gratuit et carte bancaire requis ; commande « manuelle » depuis le tableau de bord. **V**, https://support.gelato.com/en/articles/8996044
+- C'est un outil orienté vendeurs. L'accès direct pour un particulier n'est pas documenté.
+
+**PDF : un seul fichier.** **V**, https://support.gelato.com/en/articles/8996282
+- Page 1 : couverture étalée.
+- Page 2 et dernière page : gardes laissées vierges.
+- Entre les deux : pages intérieures. 30 à 200 pages, nombre fixe.
+
+**Spécifications :** **V**, https://support.gelato.com/en/articles/8996349
+- Fond perdu de 3 mm pour un livre photo.
+- **PDF/X-4, intention de sortie GRACoL 2006 (CMJN)**.
+- Sécurité de 4 mm (règle générale).
+- 150 à 300 dpi, pages simples.
+
+**Prix, frais de port, sites de production en France :** **non trouvés** (pages produit bloquées en 403).
+- Le prix inclut les 30 premières pages (**S**).
+
+**Note :** 4,2/5, 3 444 avis. **V**
+
+---
+
+### 0.8 Prodigi (Royaume-Uni, absorbe Peecho)
+
+**Production :** livre rigide fabriqué au Royaume-Uni, dans l'UE, aux États-Unis, au Mexique et en Australie, par le laboratoire le plus proche ; 120 h. **V**, https://www.prodigi.com/products/books-and-magazines/hardcover-photo-book/
+- Expédition partout dans le monde.
+- Une commande française devrait donc partir de l'UE. C'est une déduction, à vérifier.
+
+**TVA :** sans numéro de TVA, le client est traité comme particulier et la TVA est appliquée (**S**, support Prodigi). Commande et prix : **connexion requise**.
+
+**Livre rigide :** **V**
+- Formats : **A5 15×21, A4 21×30, carré 21×21 seulement** (pas de 30×30 en rigide).
+- Pages : 24 à 300 ; jusqu'à 500 en brillant 150 g.
+- Papiers : Mohawk 120 g mat, brillant 150 ou 200 g.
+- Reliure PUR.
+
+**Layflat :** **V**, /layflat-photo-book/
+- Formats : 210×210, **297×297**, A4 portrait ou paysage.
+- Pages : 18 à 122. Papier E-Photo Lustre 190 g.
+- Fabriqué dans l'UE ou aux États-Unis, en 96 à 144 h.
+- **Dès 17,51 £** prix de gros, hors taxes et hors port.
+
+**Fichiers :** **V**, https://www.prodigi.com/blog/photo-books-technical-guide/
+- Pas de fond perdu (ajouté par Prodigi). Marge de sécurité de 10 mm. Environ 6 mm masqués dans la gouttière.
+- **RVB**, export PDF/X-4 (Coated FOGRA39).
+- Un seul PDF en pages simples : 1re de couverture, intérieur, 4e de couverture. Nombre de pages pair.
+- Dos fourni à part par l'API.
+
+**Note :** 4,0/5, 148 avis. **V**
+
+Peecho se présente désormais comme « a Prodigi Group print on demand company » (**V**, peecho.com).
+
+---
+
+### 0.9 Alternatives accessibles depuis la France
+
+**A. Flexilivre (France, Hauts-de-France) : la plus pertinente.**
+- **Import de PDF : oui.** **V**, https://www.flexilivre.com/fichier/
+  - PDF converti en livre, modifiable en ligne.
+  - Formats : 21×15, 29,7×21, 15×21, **21×29,7**, 21×21, **30×30**.
+  - Couverture en 1re et dernière page du PDF ; dos non imprimable.
+  - Pas de traits de coupe, contenu important à 5 mm des bords.
+  - RVB par défaut, CMJN sur demande. PDF jusqu'à 3 Go.
+- **Prix TTC, 24 à 30 pages**, relevés par Flexilivre le 29/10/2026 (**V**, https://www.flexilivre.com/tarifs/) :
+
+| Couverture | A4 portrait | 30×30 |
+|---|---|---|
+| Souple | 24,90 € | 29,90 € |
+| Rigide | 29,90 € | 38,90 € |
+| Rigide, ouverture à plat | 42,90 € | 49,90 € |
+
+- Pages : 24 à 400, par 2. Papier Novatech Gloss 200 g ; 400 g pour l'ouverture à plat (**V**, /album-photo/xxl/). Prix de la page supplémentaire : non trouvé.
+- **Délais :** 3 à 5 j ouvrés en standard (Colissimo ou Chronopost) ; express 48 h Chronopost en France métropolitaine ; ouverture à plat 5 à 8 j (**V**, /delais-de-livraison/).
+- **Frais de port :** non trouvés.
+- **Note :** 4,7/5, 39 191 avis (**V**, fr.trustpilot.com/review/flexilivre.com).
+
+**B. Pumbo (France, Nice).**
+- Livre relié rigide imprimé à partir d'un PDF.
+- Formats de A6 à 300×300 mm (21×21 et 30×30 en format personnalisé).
+- Papiers couchés ou non, de 80 à 200 g, dont des papiers pour photos. Minimum 18 pages.
+- Prix TTC. Port minimum 3 € TTC.
+- Fabrication 5 j ouvrés ; expédition 5 à 7 j ouvrés ; transporteur GLS.
+- Sources **V** : https://www.pumbo.fr/tarifs, /aide/livraison, /imprimer-un-livre/livre-photo
+- Prix : **non trouvés** (calculateur).
+- **Note :** 4,5/5 sur seulement 19 avis.
+
+**C. Pixartprinting :** déjà au catalogue (point 4). C'est l'imprimeur offset en CMJN de la liste.
+
+**Écartés :**
+- **Photobox, Monalbumphoto, Photoweb :** aucune page d'import PDF trouvée. Monalbumphoto a été absorbé par Photobox.
+- **Realisaprint :** « 100 % revendeur ».
+- **Exaprint :** réservé aux professionnels.
+- **Mixam :** mixam.fr redirige vers mixam.co.uk. Expédition hors UE, donc TVA d'import à 20 % et douane possible. Non vérifié, page en 403.
+- **Doxdirect :** papier de 100 à 130 g, pas un livre photo.
+- **Onlineprinters :** livre rigide de 48 à 328 pages, sans prix publiés.
+- **Booksline :** dès 10 exemplaires seulement.
+
+---
+
+### Synthèse
+
+**Livrent effectivement en France et acceptent un PDF fourni :**
+- Saal Digital.
+- Blurb.
+- Pixartprinting (CMJN).
+- Flexilivre.
+- Pumbo.
+- Lulu, avec une usine en France.
+- Prodigi et Gelato :
+  - réseau UE confirmé pour Prodigi, non confirmé pour Gelato ;
+  - compte de type professionnel requis ;
+  - prix accessibles seulement après connexion.
+- Fotofabriek : seulement par la procédure manuelle (retrait, puis chat, puis paiement du port PostNL).
+
+**À écarter ou à rétrograder :**
+- **CEWE :** pas de PDF sur cewe.fr ; la voie InDesign passe par la Belgique ou le Luxembourg, livraison en France non confirmée. À retirer, ou à marquer « non disponible en France ».
+- **Fotofabriek :** à garder seulement avec un avertissement (envoi en France hors tunnel, prix du port inconnu).
+- **Blurb :** à garder, mais signaler la note de 2,3/5 et la douane sur les Layflat imprimés aux États-Unis.
+
+---
+
+### Corrections appliquées à `src/lib/imprimeurs/catalogue.ts`
+
+**Saal**
+- `21x28` : base 33,99 en S → prix catalogue 33,99 € en **V** (promo 22,99 € jusqu'au 09/11). Source : https://www.saal-digital.fr/album-photo/album-photo-21-x-28/
+- `28x19` : 24,99 → **19,99**.
+- `19x19` : 14,99 → **16,99**.
+- `28x28` : 34,99 → **29,99**.
+- `pro-30x30` : 75,49 → **99,99**, et pagesMax 160 → **130**. Remise Pro Line −20 % dès 26 pages, −25 % dès 70, −30 % dès 100.
+- `pdfFrance.source` → https://www.saal-digital.fr/service/infos-pro/telechargez-votre-pdf-dans-la-boutique-en-ligne/
+- `delais` :
+  - fabrication 2 → **1 à 2 jours** (Pro Line 2 à 3) ;
+  - livraison null → **4 à 5 jours ouvrés** en standard, 1 à 2 en express ;
+  - statut **V**, source : page frais d'expédition.
+- `port.premier` : null → **5,99 € (S)**, source virusphoto.
+- `note` : 5 076 → **5 077** avis, source fr.trustpilot.
+
+**Blurb**
+- `technique.couleur` : « sRGB » → **CMJN recommandé, sRGB accepté** (V).
+- `technique.normePdf` : « PDF/X-3 » → **libre**. Aucune norme n'est imposée, selon l'article 207792946.
+- `technique.fichiers` : « separes » → séparés **ou un seul PDF**.
+- `technique.poidsMaxMo` : → **2 048 Mo** pour les pages, **90 Mo** pour la couverture.
+- `technique` : marge de sécurité 6,35 mm (V).
+- `delais.fabrication` : 5 → **4 à 5 jours ouvrés** (V).
+- Ajouter : livres photo imprimés dans l'UE, sans douane ; Layflat imprimés aux États-Unis, droits possibles.
+- Ajouter les remises : −20 % de 10 à 49 exemplaires, −25 % de 50 à 99.
+- `note` : 2,3/5 sur 892 avis (blurb.co.uk) → **2,3/5 sur 194 avis (blurb.fr)**.
+
+**Fotofabriek**
+- `pdfFrance` : null NV → **oui, procédure manuelle (V)**. Source : https://www.fotofabriek.nl/faq/pakketje-naar-buitenland/
+- `a4-portrait` et `a4-paysage` : pagesIncluses 24 désormais **V** ; parPageSup null → **0,65 €** (unité à confirmer).
+- `a4-plat` : parPageSup null → **0,90 €**.
+- Ajouter le **30×30 rigide** (44,99 € + 1,10 €) et le **30×30 à plat** (54,99 € + 1,40 €).
+- `technique.securite` : 6 → **20 mm du fond perdu** pour les textes (V).
+- `technique.couleur` : sRGB, désormais **V**.
+- `port` : tarifs NL/BE D 5,45 € et E 6,45 €, gratuit dès 50 € ; France au tarif PostNL sur demande.
+
+**Pixartprinting**
+- `pdfFrance` : S → **V** (page produit).
+- `technique.fichiers` : « unique » → **unique ou deux PDF**.
+- `technique` : statut S → **V** (CMJN Fogra 39, fond perdu 3 mm, 15 et 5 mm, 300 dpi).
+- `technique.normePdf` : « PDF/X-4 » → **PDF 1:1, norme non imposée** sur la page produit.
+- Pages 24 à 200, pas de 4 : à signaler comme **NV**.
+- `note` : 3 398 → **3 402** avis.
+
+**CEWE**
+- `pdfFrance` : false en S → **false en V** (absent du plan du site cewe.fr).
+- `lienCommande` : cewe.co.uk → à supprimer. Mentionner cewe.lu/fr et cewe.kruidvat.be/fr (InDesign seulement).
+- Livraison : Colissimo ou Colis Privé 48 h, Chronopost 24 h.
+- Remise : −10 % pour 2 exemplaires, −15 % pour 3, −20 % dès 5.
+- `note` : 129 829 → **129 844** avis.
+
+**Lulu**
+- Produits : 11×8,5 et 8,5×8,5 désormais **V**, « dès 14,76 USD » en V (page probablement ancienne).
+- pagesMax 240 → **NV** (rigide 24 à 800 en général).
+- `delais.fabrication` : → **3 à 5 jours ouvrés (V)**.
+- Ajouter : impression en France possible ; TVA française collectée par Lulu.
+- `note` : 6 547 → **6 553** avis.
+
+**Gelato**
+- `technique.couleur` : sRGB → **CMJN (sortie GRACoL 2006)**.
+- `technique.normePdf` : libre → **PDF/X-4**.
+- `technique.securite` : 10 → **4 mm**.
+- `technique` : fond perdu de 3 mm confirmé, statut NV → **V**. Source : https://support.gelato.com/en/articles/8996349
+- Ajouter : compte et carte bancaire requis.
+
+**Prodigi**
+- `a4-portrait` : 210×297 → **210×300** (« 21×30 cm »).
+- Supprimer toute idée de 30×30 en rigide. Ajouter le **Layflat 297×297** (18 à 122 pages, dès 17,51 £ HT hors port, fabriqué dans l'UE).
+- `technique.couleur` : préciser **RVB, export PDF/X-4 FOGRA39** (V).
+- Fabrication 120 h pour le livre rigide, 96 h pour le souple.
+- `note` : 146 → **148** avis.
+- Peecho : « a Prodigi Group company » (V).
+
+**Nouvelles fiches proposées**
+- **Flexilivre** :
+  - PDF V ;
+  - A4 rigide 29,90 €, 30×30 rigide 38,90 €, à plat 42,90 / 49,90 € ;
+  - 24 à 400 pages, par 2 ;
+  - marge de 5 mm, RVB ;
+  - note 4,7/5 sur 39 191 avis.
+- **Pumbo** :
+  - livre relié à partir d'un PDF ;
+  - minimum 18 pages, jusqu'à 300×300 mm ;
+  - port minimum 3 € TTC, GLS ;
+  - prix NV.
+
+**Encore NV après cette recherche :**
+- frais de port exacts pour la France chez Blurb, Pixartprinting, CEWE, Lulu, Gelato, Prodigi et Flexilivre ;
+- prix par page chez Saal, Pixartprinting, Lulu, Gelato et Prodigi ;
+- prix de Pumbo ;
+- livraison en France depuis cewe.lu.
+
+Ces valeurs demandent une simulation de panier ou un compte.
+
+---
+
 ## 1. Tri des candidats
 
 | Candidat | PDF libre accepté ? | Décision |

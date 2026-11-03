@@ -93,6 +93,10 @@ export function comparer(
       exclusions.push({ imprimeur: imp, raison: "Ne propose pas l’impression d’un PDF libre depuis la France (seulement son propre logiciel)." });
       continue;
     }
+    if (imp.livraisonFrance.valeur === "non") {
+      exclusions.push({ imprimeur: imp, raison: "Ne livre pas en France." });
+      continue;
+    }
     const produit = produitProche(imp, livre.largeur, livre.hauteur);
     if (!produit) {
       exclusions.push({ imprimeur: imp, raison: `Aucun format ${NOMS_FORME[f]} dans la gamme relevée.` });
@@ -109,13 +113,16 @@ export function comparer(
     const portEur = port == null ? null : enEuros(port, imp.port.devise);
     const incertitudes: string[] = [];
     if (imp.pdfFrance.valeur == null) incertitudes.push("Dépôt de PDF depuis la France à confirmer.");
+    if (imp.livraisonFrance.valeur === "procedure") incertitudes.push("Livraison en France hors du tunnel de commande, sur demande au service client.");
+    else if (imp.livraisonFrance.valeur == null) incertitudes.push("Livraison en France à confirmer.");
     if (exemplaire == null) incertitudes.push("Prix non relevé : à vérifier sur le site.");
     else if (produit.prix.statut !== "V") incertitudes.push("Prix issu d’une source secondaire.");
     if (portEur == null) incertitudes.push("Frais de port non relevés : non compris dans le total.");
     if (produit.prix.devise !== "EUR") incertitudes.push(`Prix en ${produit.prix.devise}, converti au taux indicatif du ${DATE_TAUX}.`);
     if (imp.technique.couleur !== "sRGB") incertitudes.push(`Demande des fichiers en ${imp.technique.couleur} : l’export est en RVB (sRGB).`);
     if (imp.technique.statut === "NV") incertitudes.push("Contraintes techniques à confirmer.");
-    const delai = imp.delais.fabrication != null && imp.delais.livraison != null ? imp.delais.fabrication + imp.delais.livraison : null;
+    const { fabrication, livraison: envoi, total: delaiTotal } = imp.delais;
+    const delai = delaiTotal ?? (fabrication != null && envoi != null ? fabrication + envoi : null);
     lignes.push({
       imprimeur: imp,
       produit,

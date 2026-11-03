@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IMPRIMEURS } from "@/lib/imprimeurs/catalogue";
+import { IMPRIMEURS, imprimeurParId } from "@/lib/imprimeurs/catalogue";
 import { coutMicroUsd, typeImage } from "@/lib/ia/tarifs";
 import type { Db } from "@/server/db/client";
 import { depenseIa, majImprimeur, media } from "@/server/db/schema";
@@ -205,7 +205,7 @@ describe("mise à jour des fiches imprimeurs par l'IA", () => {
     const { id } = await proposerMaj(db, appel, "saal", userId, { plafondEur: 3 });
     await rejeterMaj(db, id);
     await expect(validerMaj(db, id, [])).rejects.toThrow("plus en attente");
-    expect((await catalogueEffectif(db)).find((i) => i.id === "saal")!.releve).toBe("2026-11-02");
+    expect((await catalogueEffectif(db)).find((i) => i.id === "saal")!.releve).toBe(imprimeurParId("saal")!.releve);
     await proposerMaj(db, appel, "saal", userId, { plafondEur: 3 });
   });
 });
