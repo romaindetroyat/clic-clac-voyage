@@ -8,7 +8,7 @@ import type { Db } from "@/server/db/client";
 import { appareil, media, voyage } from "@/server/db/schema";
 import { genererId } from "@/server/domaine/crypto";
 import { compterARelire, etatDates, fixerDates, instantDuJour, numeroDeFichier, relireDatesServeur, suggererDates } from "@/server/domaine/dates";
-import { galerie, urlsMembre } from "@/server/domaine/medias";
+import { dateDuFichier, galerie, urlsMembre } from "@/server/domaine/medias";
 import { StockageLocal } from "@/server/stockage/local";
 import { accepterInvitations, creerVoyage, inviter } from "@/server/domaine/voyages";
 import { baseDeTest, creerUtilisateur } from "./aide-db";
@@ -37,7 +37,7 @@ describe("dates déduites des voisines", () => {
       datees,
     );
     expect(r).toEqual([
-      { id: "x", instant: h(10, 30), raison: "entre IMG_1230.HEIC et IMG_1240.HEIC" },
+      { id: "x", instant: h(10, 30), raison: "entre IMG_1230.HEIC et IMG_1240.HEIC", sure: true },
       { id: "y", instant: new Date(h(11).getTime() + 5000), raison: "près de IMG_1240.HEIC" },
     ]);
   });
@@ -114,6 +114,32 @@ describe("dates à fixer (base)", () => {
       ["Capture 2.png", "2026-08-04T11:30:01.000Z", true],
     ]);
     expect((await db.query.media.findFirst({ where: eq(media.id, a) }))!.priseLocale).toBe("2026-08-04T13:30:00");
+  });
+
+  it("après la relecture, date d'office les médias sûrement encadrés par leurs voisines", async () => {
+    const s = new StockageLocal(await mkdtemp(path.join(tmpdir(), "cc-sures-")), "http://localhost", "secret-de-test-secret-de-test-secret-de-test");
+    await ajouter("IMG_0010.HEIC", { prise: h(9) });
+    await ajouter("IMG_0012.HEIC", { prise: h(10) });
+    await ajouter("IMG_0020.HEIC", { prise: h(20) });
+    const sure = await ajouter("IMG_0011.HEIC"); // entre 9 h et 10 h : sûr
+    const douteuse = await ajouter("IMG_0015.HEIC"); // entre 10 h et 20 h : à confirmer
+    for (const id of [sure, douteuse]) await s.ecrire(id, new Uint8Array([1, 2, 3]));
+    await db.update(media).set({ cleOriginal: sure }).where(eq(media.id, sure));
+    await db.update(media).set({ cleOriginal: douteuse }).where(eq(media.id, douteuse));
+
+    const r = await relireDatesServeur(db, s, ctx());
+    expect(r).toMatchObject({ restantes: 0, trouvees: 1 });
+    const m = (id: string) => db.query.media.findFirst({ where: eq(media.id, id) });
+    expect([(await m(sure))!.priseUtc?.toISOString(), (await m(sure))!.dateEstimee]).toEqual(["2026-08-03T09:30:00.000Z", true]);
+    expect((await m(douteuse))!.priseUtc).toBeNull();
+    expect((await etatDates(db, urlsMembre("naxos"), ctx())).sansDate[0].suggestion?.raison).toBe("entre IMG_0012.HEIC et IMG_0020.HEIC");
+  });
+
+  it("date du fichier : seulement si elle tombe pendant le voyage", async () => {
+    const c = { voyageId, fuseau: "Europe/Athens" };
+    expect(await dateDuFichier(db, c, "2026-08-03T16:00:00.000Z")).toBe("2026-08-03T19:00:00");
+    expect(await dateDuFichier(db, c, "2026-11-03T16:00:00.000Z")).toBeNull(); // exporté plus tard
+    expect(await dateDuFichier(db, c, null)).toBeNull();
   });
 
   it("un contributeur ne date que ses propres médias", async () => {

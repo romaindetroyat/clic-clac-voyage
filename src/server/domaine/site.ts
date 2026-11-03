@@ -237,7 +237,7 @@ export async function donneesSite(
       recit: e.recit,
       debut: e.debut?.toISOString() ?? null,
       fin: e.fin?.toISOString() ?? null,
-      presentation: ((IDS_PRESENTATIONS as string[]).includes(e.presentation) ? e.presentation : "mosaique") as Presentation,
+      presentation: ((IDS_PRESENTATIONS as string[]).includes(e.presentation) ? e.presentation : "carnet") as Presentation,
       medias: publies.filter((l) => l.episodeId === e.id).map((l) => parId.get(l.id)!),
     }))
     .filter((e) => e.medias.length > 0 || e.recit);

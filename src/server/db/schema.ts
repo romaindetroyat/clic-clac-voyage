@@ -208,7 +208,7 @@ export const episode = pgTable(
     debut: timestamp("debut", { withTimezone: true }),
     fin: timestamp("fin", { withTimezone: true }),
     // Présentation dans le site : mosaïque, plein écran, défilement, alterné, photo vedette.
-    presentation: text("presentation").notNull().default("mosaique"),
+    presentation: text("presentation").notNull().default("carnet"),
     ...horodatage,
   },
   (t) => [index("episode_voyage_idx").on(t.voyageId, t.ordre)],

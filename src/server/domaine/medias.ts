@@ -3,7 +3,7 @@
  * Le navigateur calcule les métadonnées (EXIF, empreintes, versions web) et envoie les octets
  * directement au stockage ; le serveur ne fait que vérifier, signer et enregistrer.
  */
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { dateDepuisNom } from "../../lib/import/date-nom";
 import type { Db } from "../db/client";
@@ -11,7 +11,7 @@ import { appareil, media, voyage, type Media, type VersionsWeb } from "../db/sch
 import { cles, SEUIL_MULTIPART, TAILLE_MORCEAU, type Morceau, type Stockage } from "../stockage/types";
 import { genererId } from "./crypto";
 import { deciderDoublon, type Empreinte } from "./doublons";
-import { instantCorrige, priseVersUtc, trierChronologiquement } from "./temps";
+import { heureLocale, instantCorrige, priseVersUtc, trierChronologiquement } from "./temps";
 import { ErreurMetier } from "./voyages";
 
 export const TAILLE_MAX = 20 * 1024 * 1024 * 1024; // 20 Go par fichier (vidéos longues)
@@ -43,6 +43,8 @@ export const schemaDeclaration = z.object({
     .enum(["fichier", "partage", "whatsapp", "google-photos", "google-drive", "dropbox", "onedrive", "raccourci-ios"])
     .default("fichier"),
   copieCompressee: z.boolean().default(false),
+  // Date du fichier sur l'appareil qui l'envoie (dernier recours, voir dateDuFichier).
+  dateFichier: z.string().datetime().nullish(),
   // Versions web que le navigateur va envoyer (il les a déjà calculées).
   versions: z.array(z.enum(["s", "m", "l", "affiche", "video"])).max(5).default([]),
 });
@@ -92,6 +94,35 @@ export async function trouverOuCreerAppareil(db: Db, voyageId: string, userId: s
   return (await db.query.appareil.findFirst({ where: and(eq(appareil.voyageId, voyageId), eq(appareil.cle, cle)) }))!;
 }
 
+/**
+ * Date du fichier (sa date de modification sur l'appareil qui l'envoie), en heure locale du voyage,
+ * si elle tombe pendant le voyage : entre ses dates de début et de fin, ou à défaut à moins d'un jour
+ * des photos déjà datées. Sinon (fichier copié ou exporté plus tard), null.
+ */
+export async function dateDuFichier(db: Db, ctx: { voyageId: string; fuseau: string }, iso: string | null | undefined) {
+  if (!iso) return null;
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return null;
+  const v = await db.query.voyage.findFirst({ where: eq(voyage.id, ctx.voyageId), columns: { dateDebut: true, dateFin: true } });
+  let debut: number | null = null;
+  let fin: number | null = null;
+  if (v?.dateDebut && v.dateFin) {
+    debut = new Date(`${v.dateDebut}T00:00:00Z`).getTime() - 86_400_000;
+    fin = new Date(`${v.dateFin}T00:00:00Z`).getTime() + 2 * 86_400_000;
+  } else {
+    const [b] = await db
+      .select({ min: sql<Date | null>`min(${media.priseUtc})`, max: sql<Date | null>`max(${media.priseUtc})` })
+      .from(media)
+      .where(and(eq(media.voyageId, ctx.voyageId), eq(media.dateEstimee, false)));
+    if (b?.min && b.max) {
+      debut = new Date(b.min).getTime() - 86_400_000;
+      fin = new Date(b.max).getTime() + 86_400_000;
+    }
+  }
+  if (debut === null || fin === null || t.getTime() < debut || t.getTime() > fin) return null;
+  return heureLocale(t, ctx.fuseau);
+}
+
 /** Déclare un fichier à envoyer et renvoie les URL signées (ou « doublon » s'il est déjà là). */
 export async function preparerEnvoi(
   db: Db,
@@ -115,7 +146,10 @@ export async function preparerEnvoi(
     // Sans date dans le fichier (EXIF, vidéo) : celle écrite dans son nom, s'il y en a une
     // (« WhatsApp Image 2026-08-03 at 14.32.10 », « IMG_20260803_143210 »…).
     const parNom = d.priseLocale ? null : dateDepuisNom(d.nomFichier);
-    const priseLocale = d.priseLocale ?? parNom?.priseLocale ?? null;
+    // Dernier recours : la date du fichier (une image enregistrée depuis une messagerie puis
+    // transférée la garde souvent), seulement si elle tombe pendant le voyage.
+    const parFichier = d.priseLocale || parNom ? null : await dateDuFichier(db, ctx, d.dateFichier);
+    const priseLocale = d.priseLocale ?? parNom?.priseLocale ?? parFichier ?? null;
     const decalage = d.priseLocale ? (d.decalageExifMinutes ?? null) : null;
     await db.insert(media).values({
       id: mediaId,
@@ -136,7 +170,7 @@ export async function preparerEnvoi(
       decalageExifMinutes: decalage,
       priseUtc: priseVersUtc(priseLocale, decalage, ctx.fuseau),
       // Date déduite du nom : approchée (pour WhatsApp, c'est l'heure de réception, pas de prise de vue).
-      dateEstimee: !!parNom,
+      dateEstimee: !!parNom || !!parFichier,
       latitude: d.latitude ?? null,
       longitude: d.longitude ?? null,
       nettete: d.nettete ?? null,

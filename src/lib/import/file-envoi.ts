@@ -35,6 +35,8 @@ export type Element = {
   tentatives?: number;
   /** Date imposée (ex. heure du message WhatsApp) quand le fichier n'en contient pas. */
   priseImposee?: string;
+  /** Date de modification du fichier sur l'appareil (dernier recours pour dater). */
+  dateFichier?: number;
   /** Pas de nouvel essai avant cet instant (ms). */
   prochainEssai?: number;
   /** Envoyer même en économie de données (choix explicite). */
@@ -220,6 +222,7 @@ export class FileEnvoi {
         source: options.source ?? "fichier",
         copieCompressee: options.copieCompressee ?? false,
         ajouteLe: t + i,
+        dateFichier: f.lastModified || undefined,
         etat: "attente",
         progression: 0,
         fichier: f,
@@ -402,6 +405,7 @@ export class FileEnvoi {
           appareil: a.appareil,
           source: e.source,
           copieCompressee: e.copieCompressee,
+          dateFichier: e.dateFichier ? new Date(e.dateFichier).toISOString() : null,
           versions: nomsVersions,
         }),
       });
