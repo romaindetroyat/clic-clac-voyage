@@ -45,6 +45,12 @@ export function Galerie({
   const conteneur = useRef<HTMLDivElement>(null);
   const { colonnes, largeur, haut } = useMesures(conteneur);
   const [liste, setListe] = useState(medias);
+  // Nouvelle liste venue du serveur (rafraîchissement après un import, des aperçus recréés…) : on la reprend.
+  const [source, setSource] = useState(medias);
+  if (source !== medias) {
+    setSource(medias);
+    setListe(medias);
+  }
   const [ouvert, setOuvert] = useState<number | null>(null);
   const indexDe = useMemo(() => new Map(liste.map((m, i) => [m.id, i])), [liste]);
 

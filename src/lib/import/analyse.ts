@@ -113,9 +113,11 @@ export async function decoder(f: Blob, nom: string): Promise<{ image: ImageBitma
   } catch (e) {
     if (!(await estHeic(source))) throw e;
     // Chrome, Firefox, Edge ne savent pas décoder le HEIC : bibliothèque wasm.
+    // Sortie directe en ImageBitmap : la conversion en JPEG passe par un <canvas> du document,
+    // qui n'existe pas dans le Web Worker où tourne l'analyse (l'aperçu échouait en silence).
+    // L'orientation est déjà appliquée par le décodeur HEIF.
     const { heicTo } = await import("heic-to");
-    const jpeg = await heicTo({ blob: source, type: "image/jpeg", quality: 0.92 });
-    return { image: await createImageBitmap(jpeg, { imageOrientation: "from-image" }) };
+    return { image: await heicTo({ blob: source, type: "bitmap" }) };
   }
 }
 

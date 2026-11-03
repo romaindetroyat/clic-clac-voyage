@@ -66,7 +66,7 @@ const EXT_VERSION: Record<string, { ext: string; mime: string }> = {
   video: { ext: "mp4", mime: "video/mp4" },
 };
 
-async function urlsVersions(stockage: Stockage, voyageId: string, mediaId: string, noms: string[]) {
+export async function urlsVersions(stockage: Stockage, voyageId: string, mediaId: string, noms: string[]) {
   const res: Record<string, string> = {};
   for (const n of noms) {
     const { ext, mime } = EXT_VERSION[n];

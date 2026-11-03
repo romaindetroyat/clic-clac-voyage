@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
+import { compterSansApercu } from "@/server/domaine/apercus";
 import { galerie, urlsMembre } from "@/server/domaine/medias";
+import { ApercusManquants } from "./apercus-manquants";
 import { Galerie } from "./galerie";
 
 export const metadata = { title: "Photos" };
@@ -9,7 +11,11 @@ export const metadata = { title: "Photos" };
 export default async function Photos({ params }: PageProps<"/voyages/[slug]/photos">) {
   const { slug } = await params;
   const { voyage, utilisateur, estAdmin } = await accesVoyage(slug);
-  const medias = await galerie(await getDb(), urlsMembre(slug), voyage.id);
+  const db = await getDb();
+  const [medias, sansApercu] = await Promise.all([
+    galerie(db, urlsMembre(slug), voyage.id),
+    compterSansApercu(db, { voyageId: voyage.id, userId: utilisateur.id, estAdmin }),
+  ]);
   if (medias.length === 0) {
     return (
       <div className="space-y-4">
@@ -28,6 +34,7 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
         {medias.length - photos ? ` · ${medias.length - photos} vidéo${medias.length - photos > 1 ? "s" : ""}` : ""}, dans
         l’ordre chronologique
       </p>
+      {sansApercu ? <ApercusManquants slug={voyage.slug} nombre={sansApercu} /> : null}
       <Galerie medias={medias} slug={voyage.slug} utilisateurId={utilisateur.id} estAdmin={estAdmin} />
     </div>
   );
