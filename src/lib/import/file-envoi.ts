@@ -134,6 +134,9 @@ export function analyserDansWorker(id: string, fichier: Blob, nom: string, prog:
 
 type Ecouteur = (elements: Element[]) => void;
 
+/** Au-delà, le bilan d'un envoi terminé est oublié à la prochaine ouverture. */
+const OUBLI_BILAN_MS = 6 * 3600 * 1000;
+
 export class FileEnvoi {
   private elements = new Map<string, Element>();
   private ecouteurs = new Set<Ecouteur>();
@@ -171,8 +174,25 @@ export class FileEnvoi {
       if (e.etat === "analyse" || e.etat === "envoi") e.etat = "attente";
       this.elements.set(e.id, e);
     }
+    // Bilan d'un envoi fini depuis longtemps : on ne le traîne pas d'une session à l'autre.
+    if (!this.occupee() && this.liste().every((e) => e.ajouteLe < Date.now() - OUBLI_BILAN_MS)) await this.oublierTermines();
     this.notifier();
     this.pomper();
+  }
+
+  /** Des fichiers attendent, s'envoient ou sont en erreur. */
+  private occupee() {
+    return this.liste().some((e) => e.etat !== "termine" && e.etat !== "doublon");
+  }
+
+  private async oublierTermines() {
+    const db = await base();
+    for (const e of this.liste()) {
+      if (e.etat === "termine" || e.etat === "doublon") {
+        this.elements.delete(e.id);
+        await db.delete(MAGASIN, e.id);
+      }
+    }
   }
 
   abonner(f: Ecouteur) {
@@ -205,6 +225,8 @@ export class FileEnvoi {
     options: { source?: string; copieCompressee?: boolean; dates?: Map<string, string | null> } = {},
   ) {
     await this.pret;
+    // Un nouvel import après un envoi terminé : le bilan repart de zéro (il ne compte que ce lot).
+    if (!this.occupee()) await this.oublierTermines();
     let ignores = 0;
     const t = Date.now();
     for (const [i, f] of fichiers.entries()) {
@@ -251,13 +273,7 @@ export class FileEnvoi {
   }
 
   async retirerTermines() {
-    const db = await base();
-    for (const e of this.liste()) {
-      if (e.etat === "termine" || e.etat === "doublon") {
-        this.elements.delete(e.id);
-        await db.delete(MAGASIN, e.id);
-      }
-    }
+    await this.oublierTermines();
     this.notifier();
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { economieDonnees, fileEnvoi, type Element } from "@/lib/import/file-envoi";
 import { dateDepuisNom, estMediaWhatsapp, lireDiscussion } from "@/lib/import/whatsapp";
@@ -40,7 +41,7 @@ const LIBELLE: Record<Element["etat"], string> = {
   erreur: "Erreur",
 };
 
-export function Importeur({ voyage, remiseAZero = 0 }: { voyage: string; remiseAZero?: number }) {
+export function Importeur({ voyage, remiseAZero = 0, dansLeVoyage }: { voyage: string; remiseAZero?: number; dansLeVoyage?: number }) {
   const file = useMemo(() => fileEnvoi(voyage, remiseAZero), [voyage, remiseAZero]);
   const [elements, setElements] = useState<Element[]>([]);
   const [survol, setSurvol] = useState(false);
@@ -95,6 +96,14 @@ export function Importeur({ voyage, remiseAZero = 0 }: { voyage: string; remiseA
     }
     return s;
   }, [elements]);
+
+  // Envoi terminé : le total du voyage (calculé par le serveur) est relu.
+  const router = useRouter();
+  const actifsAvant = useRef(stats.actifs);
+  useEffect(() => {
+    if (actifsAvant.current > 0 && stats.actifs === 0) router.refresh();
+    actifsAvant.current = stats.actifs;
+  }, [stats.actifs, router]);
 
   const economie = useSyncExternalStore(
     (cb) => file.abonner(cb),
@@ -184,6 +193,15 @@ export function Importeur({ voyage, remiseAZero = 0 }: { voyage: string; remiseA
           </span>
         </span>
       </label>
+
+      {dansLeVoyage !== undefined ? (
+        <p className="text-sm text-encre-douce" data-testid="total-voyage">
+          {dansLeVoyage
+            ? `Déjà dans le voyage : ${dansLeVoyage} photo${dansLeVoyage > 1 ? "s" : ""} et vidéo${dansLeVoyage > 1 ? "s" : ""} (doublons écartés).`
+            : "Aucune photo dans le voyage pour l’instant."}{" "}
+          {stats.total > 0 ? "Le bilan ci-dessous ne compte que l’envoi en cours depuis cet appareil." : ""}
+        </p>
+      ) : null}
 
       {stats.total > 0 ? (
         <section className="space-y-4">

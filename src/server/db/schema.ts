@@ -304,6 +304,8 @@ export const media = pgTable(
     dansLivre: boolean("dans_livre").notNull().default(true),
     // Mise en avant dans le site (photo vedette d'un épisode, plus grande dans les mosaïques).
     vedette: boolean("vedette").notNull().default(false),
+    // Déjà passé par l'écran « Trier » (décision prise : écartée, site seul, site et livre, coup de cœur).
+    trie: boolean("trie").notNull().default(false),
     ...horodatage,
   },
   (t) => [
