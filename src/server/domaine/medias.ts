@@ -3,7 +3,7 @@
  * Le navigateur calcule les métadonnées (EXIF, empreintes, versions web) et envoie les octets
  * directement au stockage ; le serveur ne fait que vérifier, signer et enregistrer.
  */
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { dateDepuisNom } from "../../lib/import/date-nom";
 import type { Db } from "../db/client";
@@ -408,6 +408,15 @@ export async function galerie(
       vedette: l.vedette,
       dateEstimee: l.dateEstimee,
     }));
+}
+
+/** Photos et vidéos du voyage (envoyées, hors doublons masqués). */
+export async function compterMedias(db: Db, voyageId: string) {
+  const [r] = await db
+    .select({ n: count() })
+    .from(media)
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)));
+  return r?.n ?? 0;
 }
 
 /* ------------------------------ Appareils ----------------------------- */

@@ -37,7 +37,9 @@ test("import : photos, vidéo, gros fichier en morceaux, doublons, recalage d'ho
 
   // Doublons : la même photo renvoyée sous un autre nom, et sa copie WhatsApp.
   await page.getByTestId("choisir-fichiers").setInputFiles([F("copie-de-IMG_0001.jpg"), F("IMG-20260803-WA0001.jpg")]);
-  await attendreFinEnvoi(page, /^6 envoyés · 1 déjà présent$/);
+  // Le bilan ne compte que ce nouveau lot ; le total du voyage, lui, est relu sur le serveur.
+  await attendreFinEnvoi(page, /^1 envoyé · 1 déjà présent$/);
+  await expect(page.getByTestId("total-voyage")).toContainText("Déjà dans le voyage : 5 photos et vidéos");
 
   // Galerie : la copie WhatsApp est écartée, l'ordre suit l'heure des appareils (Fuji en retard).
   await page.goto("/voyages/import-naxos/photos");
@@ -110,7 +112,7 @@ test("archive WhatsApp : dates de la discussion, puis l'original remplace la cop
   // L'original arrive : il remplace la copie WhatsApp.
   await page.goto("/voyages/groupe-whatsapp/importer");
   await page.getByTestId("choisir-fichiers").setInputFiles([F("IMG_0001.jpg")]);
-  await attendreFinEnvoi(page, /^3 envoyés$/);
+  await attendreFinEnvoi(page, /^1 envoyé$/);
   await page.goto("/voyages/groupe-whatsapp/photos");
   await expect(page.getByTestId("compte-medias")).toHaveText(/^2 photos/);
   await expect(page.getByRole("button", { name: "Photo IMG_0001.jpg" })).toBeVisible();
