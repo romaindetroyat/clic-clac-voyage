@@ -2,12 +2,31 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { defauts, effet, moments, suggestion, type Decision } from "@/lib/tri/moments";
+import { defauts, effet, moments, REGROUPEMENTS, suggestion, type Decision, type Regroupement } from "@/lib/tri/moments";
 import type { DecisionTri, MediaTri } from "@/server/domaine/tri";
+import { Planche } from "./planche";
 
 const fmt = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 type Filtre = "a-trier" | "tout";
+type Vue = "groupes" | "une";
+
+/** Préférences d'affichage gardées dans ce navigateur (sans conséquence si le stockage est indisponible). */
+function lirePref<T extends string>(cle: string, permis: readonly T[], defaut: T): T {
+  try {
+    const v = localStorage.getItem(cle) as T | null;
+    return v && permis.includes(v) ? v : defaut;
+  } catch {
+    return defaut;
+  }
+}
+function ecrirePref(cle: string, v: string) {
+  try {
+    localStorage.setItem(cle, v);
+  } catch {
+    // stockage indisponible : la préférence ne sera simplement pas retenue
+  }
+}
 type Etape = { avant: DecisionTri[]; position: number };
 
 function etatDe(m: MediaTri): { libelle: string; ton: string } {
@@ -57,6 +76,16 @@ export function Trieuse({
   const [erreur, setErreur] = useState<string | null>(null);
   const [aide, setAide] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+  // Vue par groupes par défaut (plus rapide) ; une photo précise demandée ouvre la vue « une par une ».
+  const [vue, setVue] = useState<Vue>(depart ? "une" : "groupes");
+  const [regroupement, setRegroupement] = useState<Regroupement>("5min");
+  useEffect(() => {
+    // Préférences de ce navigateur, lues après l'affichage (pas de stockage côté serveur).
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (!depart) setVue(lirePref<Vue>("tri-vue", ["groupes", "une"], "groupes"));
+    setRegroupement(lirePref<Regroupement>("tri-regroupement", Object.keys(REGROUPEMENTS) as Regroupement[], "5min"));
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [depart]);
 
   const groupe = useMemo(() => (groupes[position] ?? []).map((id) => parId.get(id)!).filter(Boolean), [groupes, position, parId]);
   const serie = groupe.length > 1;
@@ -213,6 +242,49 @@ export function Trieuse({
   }, [serie, iaEnCours, groupe, slug, setChoisis]);
 
   const retour = (id: string) => encodeURIComponent(`/voyages/${slug}/photos/trier?m=${id}`);
+  const deciderPlanche = useCallback(
+    (decisions: DecisionTri[]) => void envoyer(decisions, { avant: photographie(decisions.map((d) => d.id)), position }),
+    [envoyer, photographie, position],
+  );
+  const ouvrir = useCallback(
+    (id: string) => {
+      const i = groupes.findIndex((g) => g.includes(id));
+      if (i < 0) return;
+      setVue("une");
+      ecrirePref("tri-vue", "une");
+      setFiltre("tout");
+      setFini(false);
+      setPosition(i);
+    },
+    [groupes],
+  );
+  const changerVue = (v: Vue) => {
+    setVue(v);
+    ecrirePref("tri-vue", v);
+    if (v === "une") {
+      // Reprendre au premier moment encore à trier.
+      const i = suivant(-1, "a-trier");
+      setFiltre("a-trier");
+      if (i < 0) setFini(true);
+      else {
+        setFini(false);
+        setPosition(i);
+      }
+    }
+  };
+
+  // Les photos des moments suivants se chargent à l'avance : l'affichage est immédiat quand on avance.
+  useEffect(() => {
+    if (vue !== "une") return;
+    for (const g of groupes.slice(position + 1, position + 4)) {
+      for (const id of g.slice(0, 6)) {
+        const m = parId.get(id);
+        const src = g.length > 1 ? m?.moyenne : (m?.moyenne ?? m?.grande);
+        if (src) new Image().src = src;
+      }
+    }
+  }, [vue, position, groupes, parId]);
+
   const lienRetouche = (id: string, auto = false) => `/voyages/${slug}/photos/${id}/retouche?retour=${retour(id)}${auto ? "&auto=1" : ""}`;
   const unique = !serie ? groupe[0] : null;
 
@@ -228,7 +300,7 @@ export function Trieuse({
       const a = actions.current;
       const k = e.key.toLowerCase();
       if (k === "z" || (k === "backspace" && !e.ctrlKey)) a.annuler();
-      else if (e.ctrlKey) return;
+      else if (e.ctrlKey || vue === "groupes") return;
       else if (k === "?") setAide((x) => !x);
       else if (k === "escape") setZoom(null);
       else if (k === "j" || k === "pagedown") a.avancer();
@@ -253,7 +325,7 @@ export function Trieuse({
     return () => window.removeEventListener("keydown", surTouche);
     // lienRetouche ne dépend que du slug.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serie, groupe, choisis, ia, estAdmin, unique]);
+  }, [serie, groupe, choisis, ia, estAdmin, unique, vue]);
 
   // Glisser sur téléphone : à droite on garde, à gauche on écarte, vers le haut coup de cœur.
   const depart_ = useRef<{ x: number; y: number } | null>(null);
@@ -289,11 +361,51 @@ export function Trieuse({
 
   return (
     <div className="space-y-4" data-testid="trieuse">
+      <div className="flex flex-wrap items-center gap-2">
+        <div role="group" aria-label="Vue" className="inline-flex overflow-hidden rounded-md border border-filet text-sm">
+          {(
+            [
+              ["groupes", "Par groupes"],
+              ["une", "Une par une"],
+            ] as const
+          ).map(([v, l]) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={vue === v}
+              onClick={() => changerVue(v)}
+              className={`min-h-10 px-3 ${vue === v ? "bg-encre text-papier" : "hover:bg-papier-2"}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        {vue === "groupes" ? (
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-encre-douce">Regrouper</span>
+            <select
+              className="champ py-1"
+              value={regroupement}
+              onChange={(e) => {
+                setRegroupement(e.target.value as Regroupement);
+                ecrirePref("tri-regroupement", e.target.value);
+              }}
+            >
+              {(Object.keys(REGROUPEMENTS) as Regroupement[]).map((r) => (
+                <option key={r} value={r}>
+                  {REGROUPEMENTS[r].libelle.toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="min-w-48 flex-1 space-y-1" data-testid="progression">
           <p className="text-sm">
             <strong>{restants}</strong> photo{restants > 1 ? "s" : ""} à trier sur {medias.length}
-            {!fini ? (
+            {!fini && vue === "une" ? (
               <span className="text-encre-douce">
                 {" "}
                 · moment {position + 1} / {groupes.length}
@@ -312,6 +424,7 @@ export function Trieuse({
             onChange={(e) => {
               const f = e.target.value as Filtre;
               setFiltre(f);
+              if (vue === "groupes") return;
               if (f === "a-trier" && !nonTrie(position)) {
                 const i = suivant(-1, f);
                 if (i < 0) setFini(true);
@@ -327,12 +440,14 @@ export function Trieuse({
           ↶ Annuler
           <Touche k="Z" />
         </button>
-        <button type="button" className="bouton-discret" onClick={() => setAide((x) => !x)} aria-expanded={aide}>
-          Raccourcis
-        </button>
+        {vue === "une" ? (
+          <button type="button" className="bouton-discret" onClick={() => setAide((x) => !x)} aria-expanded={aide}>
+            Raccourcis
+          </button>
+        ) : null}
       </div>
 
-      {aide ? (
+      {aide && vue === "une" ? (
         <div className="carte grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
           <p>
             <strong>→</strong> ou <strong>L</strong> : site et livre · <strong>↓</strong> ou <strong>S</strong> : site seulement
@@ -356,7 +471,18 @@ export function Trieuse({
         </p>
       ) : null}
 
-      {fini ? (
+      {vue === "groupes" && !(filtre === "a-trier" && restants === 0) ? (
+        <Planche
+          medias={medias}
+          avis={avis}
+          estAdmin={estAdmin}
+          regroupement={regroupement}
+          seulementATrier={filtre === "a-trier"}
+          decider={deciderPlanche}
+          ouvrir={ouvrir}
+          agrandir={setZoom}
+        />
+      ) : fini || vue === "groupes" ? (
         <section className="carte space-y-3 text-center" data-testid="tri-fini">
           <h2 className="text-2xl">{restants ? "Fin de la liste" : "Tout est trié !"}</h2>
           <p className="text-encre-douce">
@@ -392,11 +518,12 @@ export function Trieuse({
           >
             {unique.type === "video" && unique.video ? (
               <video key={unique.id} src={unique.video} poster={unique.moyenne ?? undefined} controls playsInline className="max-h-[70vh] max-w-full sm:max-h-full" />
-            ) : (unique.grande ?? unique.moyenne) ? (
+            ) : (unique.moyenne ?? unique.grande) ? (
               // eslint-disable-next-line @next/next/no-img-element -- URL signée du stockage, pas d'optimisation Vercel
               <img
                 key={unique.id}
-                src={unique.grande ?? unique.moyenne ?? undefined}
+                src={unique.moyenne ?? unique.grande ?? undefined}
+                onDoubleClick={() => setZoom(unique.id)}
                 alt={unique.legende ?? `Photo ${unique.nomFichier}`}
                 className="max-h-[70vh] max-w-full object-contain transition-transform sm:max-h-full"
                 style={{ transform: decalage ? `translateX(${decalage}px) rotate(${decalage / 40}deg)` : undefined }}

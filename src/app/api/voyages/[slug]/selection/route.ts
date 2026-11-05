@@ -34,7 +34,7 @@ const corps = z.discriminatedUnion("action", [
     decisions: z
       .array(z.object({ id: z.string().uuid(), dansSite: z.boolean(), dansLivre: z.boolean(), vedette: z.boolean().optional(), trie: z.boolean() }))
       .min(1)
-      .max(50),
+      .max(2000),
   }),
   z.object({ action: z.literal("ia-serie"), ids: z.array(z.string().uuid()).min(2).max(12) }),
   z.object({
