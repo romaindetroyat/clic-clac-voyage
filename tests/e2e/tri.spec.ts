@@ -19,37 +19,30 @@ test("tri : série comparée, décisions au clavier, annulation, retouche auto, 
   await page.getByRole("link", { name: "Trier les photos" }).click();
   await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
 
-  // Vue par groupes (par défaut) : planche de vignettes ; un toucher garde une photo, Z annule.
+  // Sous chaque photo : Garder (vert), Non (rouge), Site, Livre. Annuler revient en arrière.
   await expect(page.getByTestId("planche")).toBeVisible();
-  await page.getByLabel("Regrouper").selectOption("2h");
-  const groupes = page.getByTestId("groupe");
-  await expect(groupes.first()).toContainText("photos");
-  await page.getByRole("button", { name: "Photo IMG_0002.jpg" }).click();
-  await expect(page.getByRole("button", { name: "Photo IMG_0002.jpg (gardée)" })).toHaveAttribute("aria-pressed", "true");
+  const choix = (nom: string) => page.getByRole("group", { name: `Choix pour ${nom}` });
+  await choix("IMG_0002.jpg").getByRole("button", { name: "Ne pas garder" }).click();
+  await expect(choix("IMG_0002.jpg").getByRole("button", { name: "Ne pas garder" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("progression")).toContainText("4 photos à trier sur 5");
-  await page.keyboard.press("z");
-  await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
-  // « Tout garder » sur un groupe, puis annulation.
-  await groupes.first().getByRole("button", { name: "Tout garder" }).click();
-  await expect(page.getByTestId("progression")).not.toContainText("5 photos à trier sur 5");
   await page.getByRole("button", { name: /Annuler/ }).click();
   await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
-
-  // Vue une par une.
-  await page.getByRole("button", { name: "Une par une" }).click();
-
-  // Photo seule : on l'écarte (←), puis on annule (Z) : elle revient à trier.
-  await expect(page.getByTestId("etat-media")).toHaveText("À trier");
-  await page.keyboard.press("ArrowLeft");
+  await choix("IMG_0002.jpg").getByRole("button", { name: "Livre seulement" }).click();
+  await expect(choix("IMG_0002.jpg").getByRole("button", { name: "Livre seulement" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("progression")).toContainText("4 photos à trier sur 5");
-  await page.keyboard.press("z");
-  await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
-  await expect(page.getByTestId("etat-media")).toHaveText("À trier");
 
-  // Retouche automatique depuis le tri, puis retour au même endroit.
-  await page.getByRole("link", { name: /Retouche auto/ }).click();
+  // Photo agrandie : mêmes boutons ; après un choix, la photo suivante à trier s'affiche.
+  await page.getByRole("button", { name: "Agrandir IMG_0001.jpg" }).click();
+  const grande = page.getByRole("dialog");
+  await expect(grande).toHaveAttribute("aria-label", "Photo IMG_0001.jpg");
+  await grande.getByRole("button", { name: "Site seulement" }).click();
+  await expect(page.getByTestId("progression")).toContainText("3 photos à trier sur 5");
+  await expect(grande).not.toHaveAttribute("aria-label", "Photo IMG_0001.jpg");
+  await expect(page.getByTestId("etat-agrandie")).toHaveText("À trier");
+
+  // Retouche automatique depuis la photo agrandie, puis retour sur la même photo.
+  await grande.getByRole("link", { name: /Retouche auto/ }).click();
   await expect(page.getByTestId("apercu-retouche")).toBeVisible();
-  // La retouche auto change au moins un réglage de lumière ou de couleur.
   await expect
     .poll(async () => {
       const v = await Promise.all(["Lumière", "Contraste", "Noirs", "Blancs", "Température", "Teinte", "Saturation"].map((l) => page.getByLabel(l, { exact: true }).inputValue()));
@@ -58,28 +51,22 @@ test("tri : série comparée, décisions au clavier, annulation, retouche auto, 
     .toBe(true);
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page).toHaveURL(/\/voyages\/tri-milos\/photos\/trier\?m=/, { timeout: 30_000 });
-  await expect(page.getByText(/retouchée/)).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  // Clavier : G garde la photo, Échap ferme.
+  await page.keyboard.press("g");
+  await expect(page.getByTestId("progression")).toContainText("2 photos à trier sur 5");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // Site seulement (↓).
-  await page.keyboard.press("ArrowDown");
-  await expect(page.getByTestId("progression")).toContainText("4 photos à trier sur 5");
-
-  // La suite : la rafale arrive en série (suggestion cochée, Entrée garde la sélection), la photo seule va au livre (→).
-  const serie = page.getByRole("heading", { name: "3 photos semblables" });
-  let series = 0;
-  for (let i = 0; i < 4 && !(await page.getByTestId("tri-fini").isVisible()); i++) {
-    await expect(page.getByTestId("etat-media").or(serie)).toBeVisible();
-    if (await serie.isVisible()) {
-      series++;
-      await expect(page.getByTestId("suggestion")).toHaveCount(1);
-      await expect(page.getByRole("button", { name: /Garder la sélection \(1\)/ })).toBeVisible();
-      await page.keyboard.press("Enter");
-    } else await page.keyboard.press("ArrowRight");
-    await expect(page.getByTestId("tri-fini").or(page.getByTestId("etat-media")).or(serie)).toBeVisible();
+  // Le reste du groupe : la meilleure seulement, ou tout garder.
+  for (let i = 0; i < 3 && !(await page.getByTestId("tri-fini").isVisible()); i++) {
+    const groupe = page.getByTestId("groupe").first();
+    const meilleure = groupe.getByRole("button", { name: /Garder seulement la meilleure/ });
+    if (await meilleure.isVisible()) await meilleure.click();
+    else await groupe.getByRole("button", { name: /Tout garder/ }).click();
   }
-  expect(series).toBe(1);
   await expect(page.getByTestId("tri-fini")).toContainText("Tout est trié");
-  await expect(page.getByTestId("tri-fini")).toContainText("2 écartées");
+  await expect(page.getByTestId("tri-fini")).toContainText("1 dans le livre seulement");
 
   // Les choix sont enregistrés : la page Photos le dit, et une photo écartée y est estompée.
   await page.goto("/voyages/tri-milos/photos");

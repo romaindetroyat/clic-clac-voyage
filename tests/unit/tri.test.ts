@@ -14,7 +14,7 @@ import { baseDeTest, creerUtilisateur } from "./aide-db";
 import { pixel } from "@/lib/rendu/couleur";
 import { retoucheAuto } from "@/lib/rendu/auto";
 import { NEUTRE } from "@/lib/rendu/parametres";
-import { defauts, effet, groupesPlanche, moments, parProximite, suggestion, type PhotoTri } from "@/lib/tri/moments";
+import { decisionDe, defauts, effet, groupesPlanche, moments, parProximite, suggestion, type PhotoTri } from "@/lib/tri/moments";
 
 let n = 0;
 const p = (o: Partial<PhotoTri> = {}): PhotoTri => ({
@@ -75,6 +75,10 @@ describe("tri : moments", () => {
     expect(defauts(floue)).toEqual(["floue"]);
     expect(defauts(p({ exposition: 0.1 }))).toEqual(["mal exposée"]);
     expect(effet("site")).toEqual({ dansSite: true, dansLivre: false });
+    expect(effet("livre")).toMatchObject({ dansSite: false, dansLivre: true });
+    expect(effet("garder")).toEqual({ dansSite: true, dansLivre: true });
+    expect(decisionDe({ trie: true, dansSite: false, dansLivre: true })).toBe("livre");
+    expect(decisionDe({ trie: false, dansSite: true, dansLivre: true })).toBeNull();
     expect(effet("coeur")).toMatchObject({ dansLivre: true, vedette: true });
   });
 });
