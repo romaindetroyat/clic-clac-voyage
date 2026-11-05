@@ -78,3 +78,52 @@ export function effet(d: Decision): { dansSite: boolean; dansLivre: boolean; ved
   if (d === "livre") return { dansSite: true, dansLivre: true };
   return { dansSite: true, dansLivre: true, vedette: true };
 }
+
+/** Regroupements proposés dans la vue « par groupes ». */
+export const REGROUPEMENTS = {
+  serie: { libelle: "Rafales et photos semblables", ecartMs: null },
+  "5min": { libelle: "Prises à moins de 5 min d'écart", ecartMs: 5 * 60_000 },
+  "30min": { libelle: "Prises à moins de 30 min d'écart", ecartMs: 30 * 60_000 },
+  "2h": { libelle: "Prises à moins de 2 h d'écart", ecartMs: 2 * 3600_000 },
+} as const;
+export type Regroupement = keyof typeof REGROUPEMENTS;
+
+/**
+ * Groupes de médias proches dans le temps (liste chronologique, ordre conservé) : un nouveau groupe
+ * commence quand l'écart avec le média précédent dépasse `ecartMs`. Les médias sans date forment un groupe à part.
+ */
+export function parProximite<T extends PhotoTri>(medias: T[], regroupement: Regroupement): T[][] {
+  const ecart = REGROUPEMENTS[regroupement].ecartMs;
+  if (ecart === null) return moments(medias);
+  const res: T[][] = [];
+  let prec: T | null = null;
+  for (const m of medias) {
+    const courant = res.at(-1);
+    const proche =
+      courant &&
+      prec &&
+      (m.instant && prec.instant ? Date.parse(m.instant) - Date.parse(prec.instant) <= ecart : !m.instant && !prec.instant);
+    if (proche) courant.push(m);
+    else res.push([m]);
+    prec = m;
+  }
+  return res;
+}
+
+export type Groupe<T> = { medias: T[]; /** Série de photos semblables (on y choisit la meilleure). */ serie: boolean };
+
+/**
+ * Groupes pour la planche. En mode « rafales », les photos seules qui se suivent le même jour
+ * sont réunies dans un même groupe (une carte par série, une carte pour les photos seules du jour).
+ */
+export function groupesPlanche<T extends PhotoTri>(medias: T[], regroupement: Regroupement, jourDe: (iso: string | null) => string): Groupe<T>[] {
+  const bruts = parProximite(medias, regroupement);
+  if (regroupement !== "serie") return bruts.map((g) => ({ medias: g, serie: false }));
+  const res: Groupe<T>[] = [];
+  for (const g of bruts) {
+    const prec = res.at(-1);
+    if (g.length === 1 && prec && !prec.serie && jourDe(prec.medias[0].instant) === jourDe(g[0].instant)) prec.medias.push(g[0]);
+    else res.push({ medias: [...g], serie: g.length > 1 });
+  }
+  return res;
+}

@@ -19,6 +19,25 @@ test("tri : série comparée, décisions au clavier, annulation, retouche auto, 
   await page.getByRole("link", { name: "Trier les photos" }).click();
   await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
 
+  // Vue par groupes (par défaut) : planche de vignettes ; un toucher garde une photo, Z annule.
+  await expect(page.getByTestId("planche")).toBeVisible();
+  await page.getByLabel("Regrouper").selectOption("2h");
+  const groupes = page.getByTestId("groupe");
+  await expect(groupes.first()).toContainText("photos");
+  await page.getByRole("button", { name: "Photo IMG_0002.jpg" }).click();
+  await expect(page.getByRole("button", { name: "Photo IMG_0002.jpg (gardée)" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("progression")).toContainText("4 photos à trier sur 5");
+  await page.keyboard.press("z");
+  await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
+  // « Tout garder » sur un groupe, puis annulation.
+  await groupes.first().getByRole("button", { name: "Tout garder" }).click();
+  await expect(page.getByTestId("progression")).not.toContainText("5 photos à trier sur 5");
+  await page.getByRole("button", { name: /Annuler/ }).click();
+  await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
+
+  // Vue une par une.
+  await page.getByRole("button", { name: "Une par une" }).click();
+
   // Photo seule : on l'écarte (←), puis on annule (Z) : elle revient à trier.
   await expect(page.getByTestId("etat-media")).toHaveText("À trier");
   await page.keyboard.press("ArrowLeft");

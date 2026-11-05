@@ -64,20 +64,27 @@ export async function trier(db: Db, ctx: { voyageId: string; estAdmin: boolean }
     columns: { id: true, rafaleId: true },
   });
   if (lignes.length !== new Set(ids).size) throw new ErreurMetier("Photo introuvable.");
-  const rafale = new Map(lignes.map((l) => [l.id, l.rafaleId]));
+  const enRafale = new Set(lignes.filter((l) => l.rafaleId).map((l) => l.id));
+  // Une requête par décision identique (des centaines de photos d'un coup dans la vue par groupes).
+  const paquets = new Map<string, { d: DecisionTri; ids: string[] }>();
+  for (const d of decisions) {
+    const cle = `${d.dansSite}|${d.dansLivre}|${d.vedette}|${d.trie}`;
+    paquets.set(cle, { d, ids: [...(paquets.get(cle)?.ids ?? []), d.id] });
+  }
   await db.transaction(async (tx) => {
-    for (const d of decisions) {
+    for (const { d, ids: lot } of paquets.values()) {
       await tx
         .update(media)
-        .set({
-          dansSite: d.dansSite,
-          dansLivre: d.dansLivre,
-          trie: d.trie,
-          ...(d.vedette !== undefined ? { vedette: d.vedette } : {}),
-          // Dans une rafale, un choix fait ici est un choix manuel : l'IA et la détection n'y reviennent pas.
-          ...(rafale.get(d.id) ? { choixRafale: d.dansSite, choixManuel: d.trie } : {}),
-        })
-        .where(and(eq(media.id, d.id), eq(media.voyageId, ctx.voyageId)));
+        .set({ dansSite: d.dansSite, dansLivre: d.dansLivre, trie: d.trie, ...(d.vedette !== undefined ? { vedette: d.vedette } : {}) })
+        .where(and(eq(media.voyageId, ctx.voyageId), inArray(media.id, lot)));
+      // Dans une rafale, un choix fait ici est un choix manuel : l'IA et la détection n'y reviennent pas.
+      const rafales = lot.filter((id) => enRafale.has(id));
+      if (rafales.length) {
+        await tx
+          .update(media)
+          .set({ choixRafale: d.dansSite, choixManuel: d.trie })
+          .where(and(eq(media.voyageId, ctx.voyageId), inArray(media.id, rafales)));
+      }
     }
   });
 }

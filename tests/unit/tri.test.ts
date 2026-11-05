@@ -14,7 +14,7 @@ import { baseDeTest, creerUtilisateur } from "./aide-db";
 import { pixel } from "@/lib/rendu/couleur";
 import { retoucheAuto } from "@/lib/rendu/auto";
 import { NEUTRE } from "@/lib/rendu/parametres";
-import { defauts, effet, moments, suggestion, type PhotoTri } from "@/lib/tri/moments";
+import { defauts, effet, groupesPlanche, moments, parProximite, suggestion, type PhotoTri } from "@/lib/tri/moments";
 
 let n = 0;
 const p = (o: Partial<PhotoTri> = {}): PhotoTri => ({
@@ -42,6 +42,25 @@ describe("tri : moments", () => {
     ];
     expect(moments(l).map((m) => m.length)).toEqual([3, 1, 1, 1, 1]);
     expect(moments(l).flat()).toEqual(l);
+  });
+
+  it("groupes par écart de temps : 5 min, 30 min, 2 h ; les médias sans date à part", () => {
+    const l = [p({ instant: t(0) }), p({ instant: t(240) }), p({ instant: t(900), dhash: "f0f0f0f0f0f0f0f0" }), p({ instant: t(4000) }), p({ instant: null }), p({ instant: null })];
+    expect(parProximite(l, "5min").map((g) => g.length)).toEqual([2, 1, 1, 2]);
+    expect(parProximite(l, "30min").map((g) => g.length)).toEqual([3, 1, 2]);
+    expect(parProximite(l, "2h").map((g) => g.length)).toEqual([4, 2]);
+    expect(parProximite(l, "serie").map((g) => g.length)).toEqual([1, 1, 1, 1, 1, 1]); // plus de 2 min d'écart
+  });
+
+  it("planche en mode rafales : les séries à part, les photos seules du même jour ensemble", () => {
+    const l = [p({ instant: t(0) }), p({ instant: t(5) }), p({ instant: t(1000) }), p({ instant: t(3000), dhash: "f0f0f0f0f0f0f0f0" }), p({ instant: t(90_000) })];
+    const jour = (iso: string | null) => (iso ?? "").slice(0, 10);
+    expect(groupesPlanche(l, "serie", jour).map((g) => [g.medias.length, g.serie])).toEqual([
+      [2, true],
+      [2, false],
+      [1, false],
+    ]);
+    expect(groupesPlanche(l, "5min", jour).every((g) => !g.serie)).toBe(true);
   });
 
   it("une rafale détectée reste groupée même sans empreinte", () => {
