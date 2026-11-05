@@ -70,21 +70,35 @@ export function defauts(m: { type: string; nettete: number | null; exposition: n
   return d;
 }
 
-export type Decision = "ecarter" | "site" | "livre" | "coeur";
+/**
+ * Les choix du tri : garder (site et livre), ne pas garder, site seulement, livre seulement,
+ * et coup de cœur (gardée et mise en avant sur le site).
+ */
+export type Decision = "garder" | "ecarter" | "site" | "livre" | "coeur";
 /** Ce qu'une décision change sur un média. */
 export function effet(d: Decision): { dansSite: boolean; dansLivre: boolean; vedette?: boolean } {
   if (d === "ecarter") return { dansSite: false, dansLivre: false, vedette: false };
   if (d === "site") return { dansSite: true, dansLivre: false };
-  if (d === "livre") return { dansSite: true, dansLivre: true };
+  if (d === "livre") return { dansSite: false, dansLivre: true, vedette: false };
+  if (d === "garder") return { dansSite: true, dansLivre: true };
   return { dansSite: true, dansLivre: true, vedette: true };
+}
+
+/** La décision correspondant à l'état d'un média (null : pas encore trié). */
+export function decisionDe(m: { trie: boolean; dansSite: boolean; dansLivre: boolean }): Exclude<Decision, "coeur"> | null {
+  if (!m.trie) return null;
+  if (m.dansSite && m.dansLivre) return "garder";
+  if (m.dansSite) return "site";
+  if (m.dansLivre) return "livre";
+  return "ecarter";
 }
 
 /** Regroupements proposés dans la vue « par groupes ». */
 export const REGROUPEMENTS = {
-  serie: { libelle: "Rafales et photos semblables", ecartMs: null },
-  "5min": { libelle: "Prises à moins de 5 min d'écart", ecartMs: 5 * 60_000 },
-  "30min": { libelle: "Prises à moins de 30 min d'écart", ecartMs: 30 * 60_000 },
-  "2h": { libelle: "Prises à moins de 2 h d'écart", ecartMs: 2 * 3600_000 },
+  serie: { libelle: "Par rafale", ecartMs: null },
+  "5min": { libelle: "À 5 min près", ecartMs: 5 * 60_000 },
+  "30min": { libelle: "À 30 min près", ecartMs: 30 * 60_000 },
+  "2h": { libelle: "À 2 h près", ecartMs: 2 * 3600_000 },
 } as const;
 export type Regroupement = keyof typeof REGROUPEMENTS;
 
