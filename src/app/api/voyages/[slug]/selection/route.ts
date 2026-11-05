@@ -4,6 +4,7 @@ import { contexteApi, repondre } from "@/server/api";
 import { getDb } from "@/server/db";
 import { choisirDansRafale, detecterRafales, enregistrerQualite } from "@/server/domaine/rafales";
 import { cocher, deplacerMedias } from "@/server/domaine/recit";
+import { avisIaMoment, trier } from "@/server/domaine/tri";
 import { ErreurMetier } from "@/server/domaine/voyages";
 import { appelIa, iaActive } from "@/server/ia/client";
 import { departagerRafales } from "@/server/ia/rafales";
@@ -29,6 +30,14 @@ const corps = z.discriminatedUnion("action", [
   z.object({ action: z.literal("detecter-rafales") }),
   z.object({ action: z.literal("departager-ia") }),
   z.object({
+    action: z.literal("trier"),
+    decisions: z
+      .array(z.object({ id: z.string().uuid(), dansSite: z.boolean(), dansLivre: z.boolean(), vedette: z.boolean().optional(), trie: z.boolean() }))
+      .min(1)
+      .max(50),
+  }),
+  z.object({ action: z.literal("ia-serie"), ids: z.array(z.string().uuid()).min(2).max(12) }),
+  z.object({
     action: z.literal("qualite"),
     mesures: z
       .array(z.object({ id: z.string().uuid(), nettete: z.number().min(0).max(1), exposition: z.number().min(0).max(1) }))
@@ -46,6 +55,12 @@ export async function POST(req: NextRequest, { params }: RouteContext<"/api/voya
     else if (a.action === "choisir-rafale") await choisirDansRafale(db, ctx.voyageId, a.mediaId);
     else if (a.action === "qualite") await enregistrerQualite(db, ctx.voyageId, a.mesures);
     else if (a.action === "detecter-rafales") return detecterRafales(db, ctx.voyageId);
+    else if (a.action === "trier") await trier(db, ctx, a.decisions);
+    else if (a.action === "ia-serie") {
+      if (!ctx.estAdmin) throw new ErreurMetier("Seul l'administrateur peut faire appel à l'IA.");
+      if (!iaActive()) throw new ErreurMetier("L'IA n'est pas configurée.");
+      return avisIaMoment(db, getStockage(), appelIa(), ctx.voyageId, a.ids);
+    }
     else if (a.action === "departager-ia") {
       if (!ctx.estAdmin) throw new ErreurMetier("Seul l'administrateur peut faire appel à l'IA.");
       if (!iaActive()) throw new ErreurMetier("L'IA n'est pas configurée.");

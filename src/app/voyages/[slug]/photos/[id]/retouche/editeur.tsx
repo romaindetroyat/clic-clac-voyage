@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { encoderWebp } from "@/lib/import/analyse";
+import { retoucheAuto } from "@/lib/rendu/auto";
 import { NEUTRE, RATIOS, rectangleCadrage, type Retouche } from "@/lib/rendu/parametres";
 import { MoteurRendu } from "@/lib/rendu/webgl";
 
@@ -50,7 +51,35 @@ function Glissiere({ libelle, valeur, min = -1, max = 1, pas = 0.01, onChange }:
   );
 }
 
-export function Editeur({ slug, mediaId, source, nom, initiale, retour }: { slug: string; mediaId: string; source: string; nom: string; initiale: Retouche; retour: string }) {
+/** Petite version de la photo (160 px) pour les statistiques de la retouche automatique. */
+function petiteImage(bitmap: ImageBitmap) {
+  const k = Math.min(1, 160 / Math.max(bitmap.width, bitmap.height));
+  const l = Math.max(1, Math.round(bitmap.width * k));
+  const h = Math.max(1, Math.round(bitmap.height * k));
+  const c = new OffscreenCanvas(l, h);
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(bitmap, 0, 0, l, h);
+  return { donnees: ctx.getImageData(0, 0, l, h).data, largeur: l, hauteur: h };
+}
+
+export function Editeur({
+  slug,
+  mediaId,
+  source,
+  nom,
+  initiale,
+  retour,
+  auto = false,
+}: {
+  slug: string;
+  mediaId: string;
+  source: string;
+  nom: string;
+  initiale: Retouche;
+  retour: string;
+  /** Appliquer la retouche automatique dès l'ouverture. */
+  auto?: boolean;
+}) {
   const router = useRouter();
   const canevas = useRef<HTMLCanvasElement>(null);
   const moteur = useRef<MoteurRendu | null>(null);
@@ -59,6 +88,7 @@ export function Editeur({ slug, mediaId, source, nom, initiale, retour }: { slug
   const [avant, setAvant] = useState(false);
   const [etat, setEtat] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const petite = useRef<ReturnType<typeof petiteImage> | null>(null);
   const ui = r.cadrageUi ?? { ratio: "original", zoom: 1, px: 0.5, py: 0.5 };
 
   useEffect(() => {
@@ -69,7 +99,9 @@ export function Editeur({ slug, mediaId, source, nom, initiale, retour }: { slug
         if (!actif || !canevas.current) return;
         moteur.current = new MoteurRendu(canevas.current);
         moteur.current.charger(bitmap);
+        petite.current = petiteImage(bitmap);
         setImage({ l: bitmap.width, h: bitmap.height });
+        if (auto) appliquerAuto();
       } catch (e) {
         setErreur(e instanceof Error && e.message.includes("WebGL") ? "Cet appareil ne permet pas la retouche (WebGL2 indisponible)." : "Impossible de charger la photo.");
       }
@@ -77,7 +109,7 @@ export function Editeur({ slug, mediaId, source, nom, initiale, retour }: { slug
     return () => {
       actif = false;
     };
-  }, [source]);
+  }, [source, auto]);
 
   useEffect(() => {
     if (!moteur.current || !image) return;
@@ -86,6 +118,13 @@ export function Editeur({ slug, mediaId, source, nom, initiale, retour }: { slug
   }, [r, avant, image]);
 
   const maj = (o: Partial<Retouche>) => setR((x) => ({ ...x, ...o }));
+
+  /** Lumière et couleur proposées d'après la photo ; le cadrage et le filtre choisis sont gardés. */
+  function appliquerAuto() {
+    if (!petite.current) return;
+    const a = retoucheAuto(petite.current);
+    setR((x) => ({ ...a, rotation: x.rotation, redressement: x.redressement, recadrage: x.recadrage, cadrageUi: x.cadrageUi, filtre: x.filtre, intensite: x.intensite }));
+  }
 
   /** Recalcule le rectangle de recadrage d'après proportions, zoom et position. */
   function cadrer(o: Partial<typeof ui>, base: Retouche = r) {
@@ -149,6 +188,9 @@ export function Editeur({ slug, mediaId, source, nom, initiale, retour }: { slug
             onPointerLeave={() => setAvant(false)}
           >
             Maintenir : original
+          </button>
+          <button type="button" className="min-h-11 flex-1 rounded-md border border-filet px-3" onClick={appliquerAuto} disabled={!image}>
+            ✨ Retouche auto
           </button>
           <button type="button" className="min-h-11 flex-1 rounded-md border border-filet px-3" onClick={() => setR(NEUTRE)}>
             Tout réinitialiser

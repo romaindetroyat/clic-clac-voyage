@@ -10,12 +10,15 @@ import { Editeur } from "./editeur";
 
 export const metadata = { title: "Retoucher" };
 
-export default async function Retoucher({ params }: PageProps<"/voyages/[slug]/photos/[id]/retouche">) {
+export default async function Retoucher({ params, searchParams }: PageProps<"/voyages/[slug]/photos/[id]/retouche">) {
   const { slug, id } = await params;
+  const q = await searchParams;
   const { voyage, utilisateur, estAdmin } = await accesVoyage(slug);
   const m = await (await getDb()).query.media.findFirst({ where: and(eq(media.id, id), eq(media.voyageId, voyage.id)) });
   if (!m || m.type !== "photo") notFound();
-  const retour = `/voyages/${voyage.slug}/photos`;
+  // Retour vers la page d'où l'on vient (l'écran de tri), seulement à l'intérieur du voyage.
+  const demande = typeof q.retour === "string" ? q.retour : null;
+  const retour = demande && demande.startsWith(`/voyages/${voyage.slug}/`) && !demande.startsWith("//") ? demande : `/voyages/${voyage.slug}/photos`;
   if (m.auteurId !== utilisateur.id && !estAdmin) {
     return (
       <div className="space-y-4">
@@ -38,6 +41,7 @@ export default async function Retoucher({ params }: PageProps<"/voyages/[slug]/p
       nom={m.nomFichier}
       initiale={schemaRetouche.parse(m.retouche ?? {})}
       retour={retour}
+      auto={q.auto === "1"}
     />
   );
 }

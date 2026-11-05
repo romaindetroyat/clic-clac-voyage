@@ -5,6 +5,7 @@ import { RelectureDates } from "@/components/relecture-dates";
 import { compterSansApercu } from "@/server/domaine/apercus";
 import { compterARelire } from "@/server/domaine/dates";
 import { galerie, urlsMembre } from "@/server/domaine/medias";
+import { compterATrier } from "@/server/domaine/tri";
 import { ApercusManquants } from "./apercus-manquants";
 import { Galerie } from "./galerie";
 
@@ -27,6 +28,7 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
     );
   }
   const photos = medias.filter((m) => m.type === "photo").length;
+  const aTrier = await compterATrier(db, voyage.id);
   const sansDate = medias.filter((m) => !m.instant).length;
   return (
     <div className="space-y-4">
@@ -35,6 +37,16 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
         {medias.length - photos ? ` · ${medias.length - photos} vidéo${medias.length - photos > 1 ? "s" : ""}` : ""}, dans
         l’ordre chronologique
       </p>
+      <div className="carte flex flex-wrap items-center justify-between gap-3" data-testid="appel-tri">
+        <p className="text-sm">
+          {aTrier
+            ? `${aTrier} photo${aTrier > 1 ? "s" : ""} ou vidéo${aTrier > 1 ? "s" : ""} à trier : gardez, écartez, choisissez la meilleure d’une série, retouchez.`
+            : "Tout est trié. Vous pouvez revoir vos choix à tout moment."}
+        </p>
+        <Link href={`/voyages/${voyage.slug}/photos/trier`} className={aTrier ? "bouton" : "bouton-discret"}>
+          {aTrier ? "Trier les photos" : "Revoir le tri"}
+        </Link>
+      </div>
       {sansDate ? (
         <div className="carte flex flex-wrap items-center gap-3" data-testid="sans-date">
           <p className="text-sm">
