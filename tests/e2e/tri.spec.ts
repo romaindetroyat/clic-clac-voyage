@@ -27,16 +27,22 @@ test("tri : série comparée, décisions au clavier, annulation, retouche auto, 
   await expect(page.getByTestId("progression")).toContainText("4 photos à trier sur 5");
   await page.getByRole("button", { name: /Annuler/ }).click();
   await expect(page.getByTestId("progression")).toContainText("5 photos à trier sur 5");
-  await choix("IMG_0002.jpg").getByRole("button", { name: "Livre seulement" }).click();
-  await expect(choix("IMG_0002.jpg").getByRole("button", { name: "Livre seulement" })).toHaveAttribute("aria-pressed", "true");
+  // Les cases Site et Livre portent une coche verte quand la photo y va.
+  await choix("IMG_0002.jpg").getByRole("checkbox", { name: "Dans le livre" }).click();
+  await expect(choix("IMG_0002.jpg").getByRole("checkbox", { name: "Dans le livre" })).toHaveAttribute("aria-checked", "true");
+  await expect(choix("IMG_0002.jpg").getByRole("checkbox", { name: "Sur le site" })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByTestId("progression")).toContainText("4 photos à trier sur 5");
 
   // Photo agrandie : mêmes boutons ; après un choix, la photo suivante à trier s'affiche.
   await page.getByRole("button", { name: "Agrandir IMG_0001.jpg" }).click();
   const grande = page.getByRole("dialog");
   await expect(grande).toHaveAttribute("aria-label", "Photo IMG_0001.jpg");
-  await grande.getByRole("button", { name: "Site seulement" }).click();
+  // Cocher une case ne fait pas changer de photo (on peut cocher l'autre) ; « Garder » coche les deux.
+  await grande.getByRole("checkbox", { name: "Sur le site" }).click();
   await expect(page.getByTestId("progression")).toContainText("3 photos à trier sur 5");
+  await expect(grande.getByRole("checkbox", { name: "Sur le site" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByTestId("etat-agrandie")).toHaveText("✓ Site");
+  await grande.getByRole("button", { name: /Photo suivante à trier/ }).click();
   await expect(grande).not.toHaveAttribute("aria-label", "Photo IMG_0001.jpg");
   await expect(page.getByTestId("etat-agrandie")).toHaveText("À trier");
 

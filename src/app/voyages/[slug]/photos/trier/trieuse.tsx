@@ -188,9 +188,9 @@ export function Trieuse({
           </div>
         </div>
         <p className="text-sm text-encre-douce">
-          Sous chaque photo : <strong className="text-emerald-700 dark:text-emerald-400">✓ Garder</strong> (site et livre),{" "}
-          <strong className="text-red-700 dark:text-red-400">✕ Non</strong> (on ne la garde pas), <strong className="text-sky-700 dark:text-sky-400">Site</strong> ou{" "}
-          <strong className="text-violet-700 dark:text-violet-400">Livre</strong> (seulement là). Touchez une photo pour l’agrandir.
+          Sous chaque photo : <strong className="text-emerald-700 dark:text-emerald-400">✓ Garder</strong> la met sur le site et dans le livre,{" "}
+          <strong className="text-red-700 dark:text-red-400">✕ Non</strong> l’écarte. Les cases <strong>Site</strong> et <strong>Livre</strong> montrent par une
+          coche verte où elle va ; touchez-en une pour l’ajouter ou l’enlever. Touchez la photo pour l’agrandir.
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <label className="flex items-center gap-2">
@@ -306,10 +306,11 @@ function Agrandie({
     for (let k = i + 1; k < medias.length; k++) if (!seulementATrier || !medias[k].trie) return medias[k].id;
     return null;
   }, [i, medias, seulementATrier]);
+  // Garder ou Non : on passe à la photo suivante à trier ; cocher Site ou Livre : on reste (pour cocher l'autre).
   const choisir = useCallback(
-    (d: Decision) => {
+    (d: Decision, avancer = true) => {
       decider([id], d);
-      aller(prochaine());
+      if (avancer) aller(prochaine());
     },
     [decider, id, aller, prochaine],
   );
@@ -333,8 +334,8 @@ function Agrandie({
       else if (k === "arrowleft" && a.precedente) a.aller(a.precedente);
       else if (k === "g" || k === "enter") a.choisir("garder");
       else if (k === "n" || k === "x" || k === "delete") a.choisir("ecarter");
-      else if (k === "s") a.choisir("site");
-      else if (k === "l") a.choisir("livre");
+      else if (k === "s") a.choisir("site", false);
+      else if (k === "l") a.choisir("livre", false);
       else if (k === "z") a.annuler();
       else return;
       e.preventDefault();
@@ -401,6 +402,11 @@ function Agrandie({
           {defauts(m).length ? ` · semble ${defauts(m).join(" et ")}` : ""}
         </p>
         <Boutons m={m} decider={choisir} grand />
+        <div className="flex justify-center">
+          <button type="button" className="min-h-10 rounded-md px-3 text-sm text-white/80 underline-offset-4 hover:underline" onClick={() => aller(prochaine())}>
+            Photo suivante à trier →
+          </button>
+        </div>
         <div className="flex flex-wrap justify-center gap-2 text-sm">
           {estAdmin ? (
             <button type="button" className="min-h-10 rounded-md border border-white/30 px-3 hover:bg-white/10" onClick={() => choisir("coeur")}>
