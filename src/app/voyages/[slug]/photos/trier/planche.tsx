@@ -10,9 +10,7 @@ const fmtHeure = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-
 
 const anneau = (m: MediaTri) => {
   if (!m.trie) return "ring-1 ring-filet";
-  if (m.dansSite && m.dansLivre) return "ring-4 ring-emerald-600";
-  if (m.dansSite) return "ring-4 ring-sky-600";
-  if (m.dansLivre) return "ring-4 ring-violet-600";
+  if (m.dansSite || m.dansLivre) return "ring-4 ring-emerald-600";
   return "ring-4 ring-red-600";
 };
 
