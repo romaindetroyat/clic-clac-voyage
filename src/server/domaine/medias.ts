@@ -11,6 +11,7 @@ import { appareil, media, voyage, type Media, type VersionsWeb } from "../db/sch
 import { cles, SEUIL_MULTIPART, TAILLE_MORCEAU, type Morceau, type Stockage } from "../stockage/types";
 import { genererId } from "./crypto";
 import { deciderDoublon, type Empreinte } from "./doublons";
+import { periodeDuVoyage } from "./dates";
 import { heureLocale, instantCorrige, priseVersUtc, trierChronologiquement } from "./temps";
 import { ErreurMetier } from "./voyages";
 
@@ -103,23 +104,11 @@ export async function dateDuFichier(db: Db, ctx: { voyageId: string; fuseau: str
   if (!iso) return null;
   const t = new Date(iso);
   if (Number.isNaN(t.getTime())) return null;
-  const v = await db.query.voyage.findFirst({ where: eq(voyage.id, ctx.voyageId), columns: { dateDebut: true, dateFin: true } });
-  let debut: number | null = null;
-  let fin: number | null = null;
-  if (v?.dateDebut && v.dateFin) {
-    debut = new Date(`${v.dateDebut}T00:00:00Z`).getTime() - 86_400_000;
-    fin = new Date(`${v.dateFin}T00:00:00Z`).getTime() + 2 * 86_400_000;
-  } else {
-    const [b] = await db
-      .select({ min: sql<Date | null>`min(${media.priseUtc})`, max: sql<Date | null>`max(${media.priseUtc})` })
-      .from(media)
-      .where(and(eq(media.voyageId, ctx.voyageId), eq(media.dateEstimee, false)));
-    if (b?.min && b.max) {
-      debut = new Date(b.min).getTime() - 86_400_000;
-      fin = new Date(b.max).getTime() + 86_400_000;
-    }
-  }
-  if (debut === null || fin === null || t.getTime() < debut || t.getTime() > fin) return null;
+  // Seulement si elle tombe pendant le voyage (ses dates, ou la période où ont été prises les autres photos).
+  const { periode, jourDe } = await periodeDuVoyage(db, ctx.voyageId);
+  if (!periode) return null;
+  const j = jourDe(t);
+  if (j < periode.debut || j > periode.fin) return null;
   return heureLocale(t, ctx.fuseau);
 }
 

@@ -82,6 +82,8 @@ async function lignesVisibles(db: Db, voyageId: string) {
       cleOriginal: media.cleOriginal,
       mime: media.mime,
       decalage: appareil.decalageSecondes,
+      dateEstimee: media.dateEstimee,
+      createdAt: media.createdAt,
     })
     .from(media)
     .leftJoin(appareil, eq(appareil.id, media.appareilId))
@@ -275,4 +277,133 @@ export async function appliquerSuggestionsSures(db: Db, ctx: Ctx) {
     toutes.filter((l) => l.instant),
   ).filter((s) => s.sure);
   return sures.length ? fixerDates(db, ctx, sures) : 0;
+}
+
+/* ---------------- Photos datées hors du voyage ---------------- */
+
+/** Écart (en jours) au-delà duquel deux journées de photos n'appartiennent plus au même voyage. */
+export const ECART_JOURS_VOYAGE = 3;
+/** Médias envoyés à moins de 10 min d'écart : même lot d'import. */
+export const MEME_LOT_MS = 10 * 60_000;
+/** Deux voisines d'import séparées de plus de 12 h ne suffisent pas pour dater. */
+export const ECART_VOISINES_IMPORT_MS = 12 * 3600_000;
+
+const jourSuivant = (j: string, n: number) => new Date(Date.parse(`${j}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Période probable du voyage d'après les jours où des photos ont été prises : le plus gros bloc de jours
+ * consécutifs (trous de 3 jours au plus). Les dates isolées loin de ce bloc (date de modification d'un
+ * fichier exporté, document photographié des semaines après…) n'en font pas partie.
+ */
+export function periodeProbable(jours: string[]): { debut: string; fin: string } | null {
+  if (!jours.length) return null;
+  const comptes = new Map<string, number>();
+  for (const j of jours) comptes.set(j, (comptes.get(j) ?? 0) + 1);
+  const tries = [...comptes.keys()].sort();
+  let meilleur: { debut: string; fin: string; n: number } | null = null;
+  let debut = tries[0];
+  let n = 0;
+  for (let i = 0; i < tries.length; i++) {
+    n += comptes.get(tries[i])!;
+    const suivant = tries[i + 1];
+    if (!suivant || jourSuivant(tries[i], ECART_JOURS_VOYAGE + 1) <= suivant) {
+      if (!meilleur || n > meilleur.n) meilleur = { debut, fin: tries[i], n };
+      debut = suivant;
+      n = 0;
+    }
+  }
+  return meilleur && { debut: meilleur.debut, fin: meilleur.fin };
+}
+
+/** Période du voyage : ses dates si elles sont renseignées, sinon la période probable (à un jour près). */
+export async function periodeDuVoyage(db: Db, voyageId: string) {
+  const v = (await db.query.voyage.findFirst({ where: eq(voyage.id, voyageId) }))!;
+  const toutes = await lignesVisibles(db, voyageId);
+  const jourDe = (d: Date) => heureLocale(d, v.fuseau).slice(0, 10);
+  let p: { debut: string; fin: string } | null = null;
+  if (v.dateDebut && v.dateFin && v.dateDebut <= v.dateFin) p = { debut: v.dateDebut, fin: v.dateFin };
+  else {
+    const probable = periodeProbable(toutes.filter((l) => l.instant && !l.dateEstimee).map((l) => jourDe(l.instant!)));
+    if (probable) p = { debut: jourSuivant(probable.debut, -1), fin: jourSuivant(probable.fin, 1) };
+  }
+  return { periode: p, toutes, fuseau: v.fuseau, jourDe };
+}
+
+export type Placement = { id: string; instant: Date };
+
+/**
+ * Où ranger un média sans date (ou daté hors du voyage) : d'abord d'après sa série de noms de fichiers,
+ * puis d'après ses voisins d'import (même personne, même lot, envoyés dans l'ordre de l'appareil).
+ */
+export function placerParVoisins(
+  aPlacer: (Numerotee & { createdAt: Date })[],
+  dates: (Numerotee & { createdAt: Date })[],
+  dansPeriode: (d: Date) => boolean,
+): Placement[] {
+  const res = new Map<string, Date>();
+  for (const s of suggererDates(aPlacer, dates)) if (dansPeriode(s.instant)) res.set(s.id, s.instant);
+
+  // Ordre d'import, par personne : les fichiers d'un même envoi arrivent dans l'ordre de la pellicule.
+  const tous = [...dates, ...aPlacer].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.nomFichier.localeCompare(b.nomFichier, "fr", { numeric: true }));
+  const datee = new Map(dates.map((d) => [d.id, d.instant!]));
+  for (const m of aPlacer) {
+    if (res.has(m.id)) continue;
+    const memes = tous.filter((x) => x.auteurId === m.auteurId);
+    const i = memes.findIndex((x) => x.id === m.id);
+    const voisine = (pas: -1 | 1) => {
+      for (let k = i + pas; k >= 0 && k < memes.length; k += pas) {
+        const t = datee.get(memes[k].id);
+        if (t) return Math.abs(memes[k].createdAt.getTime() - m.createdAt.getTime()) <= MEME_LOT_MS ? t : null;
+      }
+      return null;
+    };
+    const avant = voisine(-1);
+    const apres = voisine(1);
+    let t: Date | null = null;
+    if (avant && apres && Math.abs(apres.getTime() - avant.getTime()) <= ECART_VOISINES_IMPORT_MS) t = new Date(Math.round((avant.getTime() + apres.getTime()) / 2000) * 1000);
+    else if (avant && !apres) t = new Date(avant.getTime() + 1000);
+    else if (apres && !avant) t = new Date(apres.getTime() - 1000);
+    if (t && dansPeriode(t)) res.set(m.id, t);
+  }
+  return [...res].map(([id, instant]) => ({ id, instant }));
+}
+
+/**
+ * Range les médias sans date ou datés hors de la période du voyage : ceux qu'on peut placer d'après leurs
+ * voisins reçoivent une date estimée ; les autres, s'ils avaient une date fausse, deviennent « sans date »
+ * pour être datés à la main (écran « Dates à fixer »).
+ */
+export async function rangerHorsVoyage(db: Db, ctx: Ctx) {
+  const { periode, toutes, jourDe } = await periodeDuVoyage(db, ctx.voyageId);
+  if (!periode) return { placees: 0, sansDate: 0, periode: null };
+  const dansPeriode = (d: Date) => {
+    const j = jourDe(d);
+    return j >= periode.debut && j <= periode.fin;
+  };
+  const dates = toutes.filter((l) => l.instant && dansPeriode(l.instant));
+  const aPlacer = toutes.filter((l) => (!l.instant || !dansPeriode(l.instant)) && peutModifier(ctx, l.auteurId));
+  if (!aPlacer.length) return { placees: 0, sansDate: 0, periode };
+  const placements = placerParVoisins(
+    aPlacer.map((l) => ({ ...l, instant: null })),
+    dates,
+    dansPeriode,
+  );
+  const placees = await fixerDates(db, ctx, placements);
+  // Les dates fausses restantes sont retirées : la photo passe dans « sans date ».
+  const places = new Set(placements.map((p) => p.id));
+  const fausses = aPlacer.filter((l) => l.instant && !places.has(l.id)).map((l) => l.id);
+  if (fausses.length) {
+    await db
+      .update(media)
+      .set({ priseUtc: null, priseLocale: null, decalageExifMinutes: null, dateEstimee: false, episodeId: null })
+      .where(and(eq(media.voyageId, ctx.voyageId), inArray(media.id, fausses)));
+  }
+  return { placees, sansDate: aPlacer.length - placees, periode };
+}
+
+/** Nombre de médias à ranger (sans date, ou datés hors de la période du voyage). */
+export async function compterHorsVoyage(db: Db, voyageId: string) {
+  const { periode, toutes, jourDe } = await periodeDuVoyage(db, voyageId);
+  if (!periode) return 0;
+  return toutes.filter((l) => l.instant && (jourDe(l.instant) < periode.debut || jourDe(l.instant) > periode.fin)).length;
 }
