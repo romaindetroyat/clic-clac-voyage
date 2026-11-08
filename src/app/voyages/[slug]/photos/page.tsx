@@ -3,7 +3,7 @@ import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
 import { RelectureDates } from "@/components/relecture-dates";
 import { compterSansApercu } from "@/server/domaine/apercus";
-import { compterARelire } from "@/server/domaine/dates";
+import { compterARelire, compterHorsVoyage, periodeDuVoyage } from "@/server/domaine/dates";
 import { galerie, urlsMembre } from "@/server/domaine/medias";
 import { compterATrier } from "@/server/domaine/tri";
 import { ApercusManquants } from "./apercus-manquants";
@@ -30,6 +30,8 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
   const photos = medias.filter((m) => m.type === "photo").length;
   const aTrier = await compterATrier(db, voyage.id);
   const sansDate = medias.filter((m) => !m.instant).length;
+  const [horsVoyage, { periode }] = await Promise.all([compterHorsVoyage(db, voyage.id), periodeDuVoyage(db, voyage.id)]);
+  const fmtJour = (j: string) => new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${j}T12:00:00Z`));
   return (
     <div className="space-y-4">
       <p className="text-sm text-encre-douce" data-testid="compte-medias">
@@ -47,15 +49,18 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
           {aTrier ? "Trier les photos" : "Revoir le tri"}
         </Link>
       </div>
-      {sansDate ? (
+      {sansDate || horsVoyage ? (
         <div className="carte flex flex-wrap items-center gap-3" data-testid="sans-date">
           <p className="text-sm">
-            {sansDate} photo{sansDate > 1 ? "s ou vidéos" : " ou vidéo"} sans date : hors des épisodes, du site et du livre.
+            {sansDate ? `${sansDate} photo${sansDate > 1 ? "s ou vidéos" : " ou vidéo"} sans date` : ""}
+            {sansDate && horsVoyage ? " et " : ""}
+            {horsVoyage ? `${horsVoyage} datée${horsVoyage > 1 ? "s" : ""} hors du voyage` : ""}
+            {periode ? ` (voyage du ${fmtJour(periode.debut)} au ${fmtJour(periode.fin)})` : ""} : elles sont rangées automatiquement d’après les photos voisines ; celles qui restent se datent à la main.
           </p>
           <Link href={`/voyages/${voyage.slug}/photos/dates`} className="bouton-discret">
             Leur donner une date
           </Link>
-          <RelectureDates slug={voyage.slug} aRelire={aRelire} />
+          <RelectureDates slug={voyage.slug} aRelire={aRelire} aRanger={sansDate + horsVoyage} />
         </div>
       ) : null}
       {sansApercu ? <ApercusManquants slug={voyage.slug} nombre={sansApercu} /> : null}

@@ -58,7 +58,8 @@ async function interpreterExif(source: Blob | Uint8Array): Promise<Exif> {
     const serie = String(t.BodySerialNumber ?? t.SerialNumber ?? t.InternalSerialNumber ?? "").trim();
     const libelle = modele.toLowerCase().startsWith(marque.toLowerCase()) ? modele : `${marque} ${modele}`.trim();
     return {
-      priseLocale: heureExif(t.DateTimeOriginal ?? t.CreateDate ?? t.DateTimeDigitized ?? t.ModifyDate),
+      // Pas la date de modification (ModifyDate) : sur une photo exportée ou retouchée, c'est le jour de l'export.
+      priseLocale: heureExif(t.DateTimeOriginal ?? t.CreateDate ?? t.DateTimeDigitized),
       decalageExifMinutes: decalageExif(t.OffsetTimeOriginal ?? t.OffsetTime),
       latitude: gps && Number.isFinite(gps.latitude) ? gps.latitude : null,
       longitude: gps && Number.isFinite(gps.longitude) ? gps.longitude : null,

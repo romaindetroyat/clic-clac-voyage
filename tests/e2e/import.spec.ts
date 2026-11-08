@@ -199,7 +199,7 @@ test("dates : HEIC sans date relue automatiquement, capture d'écran datée à l
 
   // À l'ouverture des photos, le serveur relit tout seul la date dans l'original.
   await page.goto("/voyages/photos-iphone/photos");
-  await expect(page.getByTestId("relecture-dates")).toHaveText("1 date retrouvée dans les fichiers d’origine.", { timeout: 60_000 });
+  await expect(page.getByTestId("relecture-dates")).toHaveText("1 photo rangée à sa date ; 1 à dater à la main.", { timeout: 60_000 });
   await expect(page.getByTestId("sans-date")).toContainText("1 photo ou vidéo sans date");
   await page.getByRole("button", { name: "Photo IMG_0004.HEIC" }).click();
   await expect(page.getByRole("dialog")).toContainText("3 août");
