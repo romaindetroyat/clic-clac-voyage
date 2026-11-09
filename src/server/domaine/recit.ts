@@ -24,7 +24,7 @@ async function mediasVisibles(db: Db, voyageId: string) {
     })
     .from(media)
     .leftJoin(appareil, eq(appareil.id, media.appareilId))
-    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)));
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)));
   return lignes.map((l) => ({ ...l, instant: instantCorrige(l.priseUtc, l.decalage ?? 0) }));
 }
 
@@ -97,7 +97,7 @@ export async function episodesDe(db: Db, voyageId: string) {
   const comptes = await db
     .select({ episodeId: media.episodeId, n: sql<number>`count(*)::int` })
     .from(media)
-    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)))
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)))
     .groupBy(media.episodeId);
   const n = new Map(comptes.map((c) => [c.episodeId, c.n]));
   return { episodes: eps.map((e) => ({ ...e, nbMedias: n.get(e.id) ?? 0 })), nonClasses: n.get(null) ?? 0 };

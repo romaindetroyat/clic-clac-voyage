@@ -87,7 +87,7 @@ async function lignesVisibles(db: Db, voyageId: string) {
     })
     .from(media)
     .leftJoin(appareil, eq(appareil.id, media.appareilId))
-    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)));
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)));
   return lignes.map((l) => ({ ...l, instant: instantCorrige(l.priseUtc, l.decalage ?? 0) }));
 }
 
@@ -153,7 +153,7 @@ export async function fixerDates(db: Db, ctx: Ctx, choix: { id: string; instant:
     const priseUtc = new Date(c.instant.getTime() - (l.decalage ?? 0) * 1000);
     await db
       .update(media)
-      .set({ priseUtc, priseLocale: heureLocale(priseUtc, v.fuseau), decalageExifMinutes: null, dateEstimee: true })
+      .set({ priseUtc, priseLocale: heureLocale(priseUtc, v.fuseau), decalageExifMinutes: null, dateEstimee: true, rang: null })
       .where(eq(media.id, c.id));
     n++;
   }
@@ -188,7 +188,7 @@ const aRelire = (ctx: Ctx) =>
   and(
     eq(media.voyageId, ctx.voyageId),
     eq(media.statut, "pret"),
-    isNull(media.doublonDe),
+    isNull(media.doublonDe), eq(media.masque, false),
     isNull(media.priseUtc),
     eq(media.dateRelue, false),
     ctx.estAdmin ? undefined : eq(media.auteurId, ctx.userId),

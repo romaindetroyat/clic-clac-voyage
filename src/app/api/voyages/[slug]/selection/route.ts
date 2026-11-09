@@ -5,6 +5,7 @@ import { getDb } from "@/server/db";
 import { choisirDansRafale, detecterRafales, enregistrerQualite } from "@/server/domaine/rafales";
 import { cocher, deplacerMedias } from "@/server/domaine/recit";
 import { avisIaMoment, trier } from "@/server/domaine/tri";
+import { masquer, reordonner } from "@/server/domaine/organiser";
 import { ErreurMetier } from "@/server/domaine/voyages";
 import { appelIa, iaActive } from "@/server/ia/client";
 import { departagerRafales } from "@/server/ia/rafales";
@@ -37,6 +38,8 @@ const corps = z.discriminatedUnion("action", [
       .max(2000),
   }),
   z.object({ action: z.literal("ia-serie"), ids: z.array(z.string().uuid()).min(2).max(12) }),
+  z.object({ action: z.literal("masquer"), ids: z.array(z.string().uuid()).min(1).max(2000), valeur: z.boolean() }),
+  z.object({ action: z.literal("reordonner"), ids: z.array(z.string().uuid()).min(2).max(2000) }),
   z.object({
     action: z.literal("qualite"),
     mesures: z
@@ -56,6 +59,8 @@ export async function POST(req: NextRequest, { params }: RouteContext<"/api/voya
     else if (a.action === "qualite") await enregistrerQualite(db, ctx.voyageId, a.mesures);
     else if (a.action === "detecter-rafales") return detecterRafales(db, ctx.voyageId);
     else if (a.action === "trier") await trier(db, ctx, a.decisions);
+    else if (a.action === "masquer") await masquer(db, ctx, a.ids, a.valeur);
+    else if (a.action === "reordonner") await reordonner(db, ctx, a.ids);
     else if (a.action === "ia-serie") {
       if (!ctx.estAdmin) throw new ErreurMetier("Seul l'administrateur peut faire appel à l'IA.");
       if (!iaActive()) throw new ErreurMetier("L'IA n'est pas configurée.");

@@ -21,6 +21,10 @@ export const JEUX: { nom: string; r: Partial<Retouche>; geometrie?: boolean }[] 
   { nom: "chaud", r: { filtre: "chaud" } },
   { nom: "froid", r: { filtre: "froid", intensite: 0.5 } },
   { nom: "tout ensemble", r: { lumiere: 0.3, contraste: 0.4, ombres: 0.5, temperature: -0.4, saturation: 0.3, filtre: "argentique", intensite: 0.5 } },
+  { nom: "vibrance et voile", r: { vibrance: 0.8, voile: 0.6 } },
+  { nom: "voile négatif", r: { voile: -0.7, vibrance: -0.5 } },
+  { nom: "netteté et clarté", r: { nettete: 0.8, clarte: 0.7 } },
+  { nom: "vignettage", r: { vignettage: -0.8 } },
   { nom: "quart de tour", r: { rotation: 90 }, geometrie: true },
   { nom: "redressement et recadrage", r: { redressement: 7, recadrage: { x: 0.1, y: 0.2, l: 0.6, h: 0.7 } }, geometrie: true },
 ];

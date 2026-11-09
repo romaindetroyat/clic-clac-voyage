@@ -24,8 +24,8 @@ export type MediaTri = MediaGalerie & {
   retouchable: boolean;
 };
 
-export async function donneesTri(db: Db, url: UrlMedia, ctx: { voyageId: string; userId: string; estAdmin: boolean }) {
-  const base = await galerie(db, url, ctx.voyageId);
+export async function donneesTri(db: Db, url: UrlMedia, ctx: { voyageId: string; userId: string; estAdmin: boolean }, o: { masques?: boolean } = {}) {
+  const base = await galerie(db, url, ctx.voyageId, { masques: o.masques });
   const extra = base.length
     ? await db.query.media.findMany({
         where: and(eq(media.voyageId, ctx.voyageId), inArray(media.id, base.map((m) => m.id))),
@@ -120,6 +120,6 @@ export async function compterATrier(db: Db, voyageId: string) {
   const [r] = await db
     .select({ n: count() })
     .from(media)
-    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.trie, false)));
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false), eq(media.trie, false)));
   return r?.n ?? 0;
 }

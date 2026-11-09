@@ -57,7 +57,7 @@ export function meilleurePhoto(groupe: PhotoRafale[]): PhotoRafale {
  */
 export async function detecterRafales(db: Db, voyageId: string) {
   const lignes = await db.query.media.findMany({
-    where: and(eq(media.voyageId, voyageId), eq(media.type, "photo"), eq(media.statut, "pret"), isNull(media.doublonDe)),
+    where: and(eq(media.voyageId, voyageId), eq(media.type, "photo"), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)),
     columns: { id: true, priseUtc: true, appareilId: true, dhash: true, nettete: true, exposition: true, rafaleId: true, choixRafale: true },
   });
   const parId = new Map(lignes.map((l) => [l.id, l]));
@@ -107,7 +107,7 @@ export async function choisirDansRafale(db: Db, voyageId: string, mediaId: strin
 /** Rafales du voyage, pour l'écran de choix. */
 export async function rafalesDe(db: Db, voyageId: string) {
   const lignes = await db.query.media.findMany({
-    where: and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)),
+    where: and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)),
     columns: { id: true, rafaleId: true, choixRafale: true, nettete: true, exposition: true, versions: true, nomFichier: true, priseUtc: true },
   });
   const groupes = new Map<string, typeof lignes>();

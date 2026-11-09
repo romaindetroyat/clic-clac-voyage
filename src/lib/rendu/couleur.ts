@@ -23,7 +23,13 @@ export function tonalite(x: number, r: Retouche): number {
   return borne(x);
 }
 
-export function pixel(rgb: [number, number, number], r: Retouche): [number, number, number] {
+const lisser = (a: number, b: number, x: number) => {
+  const t = borne((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
+
+/** `uv` : position du point dans le résultat (0 à 1), pour le vignettage. */
+export function pixel(rgb: [number, number, number], r: Retouche, uv?: [number, number]): [number, number, number] {
   // 1. Linéaire, balance des blancs, exposition (±2 IL).
   let [R, G, B] = rgb.map(versLineaire);
   R *= 1 + 0.3 * r.temperature;
@@ -43,6 +49,25 @@ export function pixel(rgb: [number, number, number], r: Retouche): [number, numb
   R = borne(L + (R - L) * s);
   G = borne(L + (G - L) * s);
   B = borne(L + (B - L) * s);
+  // 3 bis. Vibrance (sature surtout les couleurs ternes), puis voile (enlève ou ajoute de la brume).
+  if (r.vibrance !== 0) {
+    const k = 1 + r.vibrance * (1 - (Math.max(R, G, B) - Math.min(R, G, B))) * 0.8;
+    L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+    R = borne(L + (R - L) * k);
+    G = borne(L + (G - L) * k);
+    B = borne(L + (B - L) * k);
+  }
+  if (r.voile !== 0) {
+    const h = r.voile * 0.1;
+    R = borne((R - h) / (1 - h));
+    G = borne((G - h) / (1 - h));
+    B = borne((B - h) / (1 - h));
+    L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+    const k = 1 + r.voile * 0.2;
+    R = borne(L + (R - L) * k);
+    G = borne(L + (G - L) * k);
+    B = borne(L + (B - L) * k);
+  }
   // 4. Filtre sobre.
   if (r.filtre !== "aucun" && r.intensite > 0) {
     L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
@@ -57,6 +82,14 @@ export function pixel(rgb: [number, number, number], r: Retouche): [number, numb
     R = borne(melange(R, f[0], r.intensite));
     G = borne(melange(G, f[1], r.intensite));
     B = borne(melange(B, f[2], r.intensite));
+  }
+  // 5. Vignettage (négatif : bords assombris).
+  if (r.vignettage !== 0 && uv) {
+    const d = Math.hypot(uv[0] - 0.5, uv[1] - 0.5) * Math.SQRT2;
+    const k = 1 + r.vignettage * 0.7 * lisser(0.35, 1, d);
+    R = borne(R * k);
+    G = borne(G * k);
+    B = borne(B * k);
   }
   return [R, G, B];
 }

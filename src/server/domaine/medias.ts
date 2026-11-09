@@ -3,7 +3,7 @@
  * Le navigateur calcule les métadonnées (EXIF, empreintes, versions web) et envoie les octets
  * directement au stockage ; le serveur ne fait que vérifier, signer et enregistrer.
  */
-import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { dateDepuisNom } from "../../lib/import/date-nom";
 import type { Db } from "../db/client";
@@ -321,6 +321,8 @@ export type MediaGalerie = {
   video: string | null;
   episodeId: string | null;
   retouchee: boolean;
+  /** Remplacée par une image modifiée ailleurs. */
+  remplacee: boolean;
   legende: string | null;
   dansSite: boolean;
   dansLivre: boolean;
@@ -352,9 +354,9 @@ export async function galerie(
   db: Db,
   url: UrlMedia,
   voyageId: string,
-  filtre: { episodeId?: string | null } = {},
+  filtre: { episodeId?: string | null; /** Seulement les médias masqués (dossier « Photos masquées »). */ masques?: boolean } = {},
 ): Promise<MediaGalerie[]> {
-  const conditions = [eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)];
+  const conditions = [eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, filtre.masques ?? false)];
   if (filtre.episodeId !== undefined) {
     conditions.push(filtre.episodeId === null ? isNull(media.episodeId) : eq(media.episodeId, filtre.episodeId));
   }
@@ -391,6 +393,7 @@ export async function galerie(
       video: versionUrl(l.id, "video", l.versions.video),
       episodeId: l.episodeId,
       retouchee: !!l.retouche,
+      remplacee: l.remplacee,
       legende: l.legende,
       dansSite: l.dansSite,
       dansLivre: l.dansLivre,
@@ -404,7 +407,7 @@ export async function compterMedias(db: Db, voyageId: string) {
   const [r] = await db
     .select({ n: count() })
     .from(media)
-    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)));
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)));
   return r?.n ?? 0;
 }
 
@@ -415,7 +418,7 @@ export async function appareilsDe(db: Db, voyageId: string) {
   const comptes = await db
     .select({ appareilId: media.appareilId, id: media.id })
     .from(media)
-    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)));
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)));
   const n = new Map<string, number>();
   for (const c of comptes) if (c.appareilId) n.set(c.appareilId, (n.get(c.appareilId) ?? 0) + 1);
   return apps

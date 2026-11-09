@@ -42,6 +42,7 @@ export async function mediasDuLivre(db: Db, url: UrlMedia, voyageId: string): Pr
       nettete: media.nettete,
       priseUtc: media.priseUtc,
       decalage: appareil.decalageSecondes,
+      rang: media.rang,
     })
     .from(media)
     .leftJoin(user, eq(user.id, media.auteurId))
@@ -53,6 +54,7 @@ export async function mediasDuLivre(db: Db, url: UrlMedia, voyageId: string): Pr
         eq(media.type, "photo"),
         eq(media.dansLivre, true),
         isNull(media.doublonDe),
+        eq(media.masque, false),
       ),
     );
   const tries = trierChronologiquement(lignes.map((l) => ({ ...l, instant: instantCorrige(l.priseUtc, l.decalage ?? 0) })));

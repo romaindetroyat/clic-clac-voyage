@@ -132,7 +132,7 @@ export async function cleMediaPublie(db: Db, voyageId: string, mediaId: string, 
 /** Clé de stockage d'une version web d'un média du voyage (jamais l'original). */
 export async function cleMedia(db: Db, voyageId: string, mediaId: string, taille: TailleSite, publieSeulement = false) {
   const conditions = [eq(media.id, mediaId), eq(media.voyageId, voyageId), eq(media.statut, "pret")];
-  if (publieSeulement) conditions.push(eq(media.dansSite, true), isNull(media.doublonDe));
+  if (publieSeulement) conditions.push(eq(media.dansSite, true), isNull(media.doublonDe), eq(media.masque, false));
   const m = await db.query.media.findFirst({ where: and(...conditions), columns: { versions: true, type: true } });
   return m ? (cleVersion(m.versions, m.type, taille) ?? null) : null;
 }
@@ -167,11 +167,12 @@ export async function donneesSite(
       vedette: media.vedette,
       latitude: media.latitude,
       longitude: media.longitude,
+      rang: media.rang,
     })
     .from(media)
     .leftJoin(user, eq(user.id, media.auteurId))
     .leftJoin(appareil, eq(appareil.id, media.appareilId))
-    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), eq(media.dansSite, true), isNull(media.doublonDe)));
+    .where(and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), eq(media.dansSite, true), isNull(media.doublonDe), eq(media.masque, false)));
 
   const tries = trierChronologiquement(lignes.map((l) => ({ ...l, instant: instantCorrige(l.priseUtc, l.decalage ?? 0) })));
   const ids = tries.map((l) => l.id);

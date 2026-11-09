@@ -21,6 +21,11 @@ const COULEUR: Curseur[] = [
   { cle: "teinte", libelle: "Teinte" },
   { cle: "saturation", libelle: "Saturation" },
 ];
+const PRESENCE: Curseur[] = [
+  { cle: "vibrance", libelle: "Vibrance" },
+  { cle: "clarte", libelle: "Clarté" },
+  { cle: "voile", libelle: "Correction du voile" },
+];
 const FILTRES: { val: Retouche["filtre"]; libelle: string }[] = [
   { val: "aucun", libelle: "Aucun" },
   { val: "noir-et-blanc", libelle: "Noir et blanc" },
@@ -123,7 +128,20 @@ export function Editeur({
   function appliquerAuto() {
     if (!petite.current) return;
     const a = retoucheAuto(petite.current);
-    setR((x) => ({ ...a, rotation: x.rotation, redressement: x.redressement, recadrage: x.recadrage, cadrageUi: x.cadrageUi, filtre: x.filtre, intensite: x.intensite }));
+    setR((x) => ({
+      ...a,
+      rotation: x.rotation,
+      redressement: x.redressement,
+      recadrage: x.recadrage,
+      cadrageUi: x.cadrageUi,
+      filtre: x.filtre,
+      intensite: x.intensite,
+      vibrance: x.vibrance,
+      clarte: x.clarte,
+      voile: x.voile,
+      nettete: x.nettete,
+      vignettage: x.vignettage,
+    }));
   }
 
   /** Recalcule le rectangle de recadrage d'après proportions, zoom et position. */
@@ -237,6 +255,19 @@ export function Editeur({
           {COULEUR.map((c) => (
             <Glissiere key={c.cle} libelle={c.libelle} valeur={r[c.cle] as number} onChange={(v) => maj({ [c.cle]: v })} />
           ))}
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="etiquette">Présence</h2>
+          {PRESENCE.map((c) => (
+            <Glissiere key={c.cle} libelle={c.libelle} valeur={r[c.cle] as number} onChange={(v) => maj({ [c.cle]: v })} />
+          ))}
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="etiquette">Détail et effets</h2>
+          <Glissiere libelle="Netteté" valeur={r.nettete} min={0} max={1} onChange={(v) => maj({ nettete: v })} />
+          <Glissiere libelle="Vignettage" valeur={r.vignettage} onChange={(v) => maj({ vignettage: v })} />
         </section>
 
         <section className="space-y-3">
