@@ -11,13 +11,13 @@
  */
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { clip, endPath, PDFDocument, PDFName, PDFString, popGraphicsState, pushGraphicsState, rectangle } from "@cantoo/pdf-lib";
+import { clip, concatTransformationMatrix, endPath, PDFDocument, PDFName, PDFString, popGraphicsState, pushGraphicsState, rectangle } from "@cantoo/pdf-lib";
 import { and, eq, inArray } from "drizzle-orm";
 import { rectSource } from "@/lib/livre/cadrage";
 import { DPI_ALERTE, DPI_BLOQUANT, controler } from "@/lib/livre/controles";
 import { epaisseurDos, formatParId, type Format } from "@/lib/livre/formats";
-import { geometrieCouverture, geometriePage, type Rect } from "@/lib/livre/gabarits";
-import type { Cellule, Livre, MediaLivre } from "@/lib/livre/modele";
+import { geometrieCouverture, geometriePage, type CadrePhoto, type Rect } from "@/lib/livre/gabarits";
+import { ratiosDe, type Cellule, type Livre, type MediaLivre } from "@/lib/livre/modele";
 import { empreinteRetouche, estNeutre, schemaRetouche, type Retouche } from "@/lib/rendu/parametres";
 import type { Db } from "../db/client";
 import { livre as tableLivre, media } from "../db/schema";
@@ -25,7 +25,7 @@ import { dimensionsEffectives, livreDe } from "../domaine/livre";
 import { ErreurMetier } from "../domaine/voyages";
 import type { Stockage } from "../stockage/types";
 import { fichiersPdf, profilDe, type Feuille } from "./feuilles";
-import { sourceFeuilles } from "./typst";
+import { aUneCoucheDessus, sourceFeuilles } from "./typst";
 
 export const DPI = 300;
 const PT = 72 / 25.4;
@@ -43,7 +43,7 @@ export type ImageAImprimer = {
   largeurPx: number;
   hauteurPx: number;
   /** Où la poser : page (0 = couverture) et cadre en mm (coordonnées de la page rognée). */
-  emplacements: { page: number; cadre: Rect }[];
+  emplacements: { page: number; cadre: CadrePhoto }[];
 };
 
 type MediaImpression = { id: string; nomFichier: string; cleOriginal: string; largeur: number; hauteur: number; retouche: Retouche | null };
@@ -69,11 +69,21 @@ function arrondi(x: number) {
   return Math.round(x * 10000) / 10000;
 }
 
+/** Proportions des photos après retouche (recadrage compris). */
+function ratiosImpression(medias: Map<string, MediaImpression>): Map<string, number> {
+  return new Map(
+    [...medias.values()].map((m) => {
+      const [l, h] = dimensionsEffectives(m.largeur, m.hauteur, m.retouche);
+      return [m.id, l / h];
+    }),
+  );
+}
+
 /** Plan des images : une entrée par image distincte à préparer, avec tous ses emplacements. */
 export function planImages(voyageId: string, livre: Livre, f: Format, medias: Map<string, MediaImpression>) {
   const images = new Map<string, ImageAImprimer>();
   const manquantes: number[] = [];
-  const ajouter = (page: number, cadre: Rect, c: Cellule | null) => {
+  const ajouter = (page: number, cadre: CadrePhoto, c: Cellule | null) => {
     if (!c) return;
     const m = medias.get(c.mediaId);
     if (!m) {
@@ -110,7 +120,12 @@ export function planImages(voyageId: string, livre: Livre, f: Format, medias: Ma
         emplacements: [{ page, cadre }],
       });
   };
-  livre.pages.forEach((p, i) => geometriePage(f, p.gabarit, i + 1).photos.forEach((cadre, ci) => ajouter(i + 1, cadre, p.cellules[ci] ?? null)));
+  const ratios = ratiosImpression(medias);
+  livre.pages.forEach((p, i) =>
+    geometriePage(f, p.gabarit, i + 1, ratiosDe(p.cellules, (id) => (ratios.has(id) ? { largeur: ratios.get(id)!, hauteur: 1 } : undefined))).photos.forEach((cadre, ci) =>
+      ajouter(i + 1, cadre, p.cellules[ci] ?? null),
+    ),
+  );
   ajouter(0, geometrieCouverture(f).premiere.photos[0], livre.couverture.photo);
   return { images: [...images.values()], manquantes };
 }
@@ -124,7 +139,7 @@ async function charger(db: Db, voyageId: string) {
     (x): x is string => !!x,
   );
   const medias = await mediasImpression(db, voyageId, ids);
-  return { livre: l.contenu, revision: l.revision, format: f, medias, ...planImages(voyageId, l.contenu, f, medias) };
+  return { livre: l.contenu, revision: l.revision, format: f, medias, ratios: ratiosImpression(medias), ...planImages(voyageId, l.contenu, f, medias) };
 }
 
 /** Problèmes bloquants du livre enregistré (mêmes contrôles que l'éditeur). */
@@ -195,12 +210,12 @@ export async function compilerTypst(source: string): Promise<Uint8Array> {
 async function poserImages(doc: PDFDocument, stockage: Stockage, images: ImageAImprimer[], feuilles: Feuille[]) {
   const pageDe = (c: Feuille["vues"][number]["contenu"]) => (c.type === "page" ? c.numero : c.type === "premiere" ? 0 : -1);
   for (const img of images) {
-    const poses: { index: number; x: number; y: number; l: number; h: number; clip: Rect; hauteur: number }[] = [];
+    const poses: { index: number; x: number; y: number; l: number; h: number; rotation: number; clip: Rect; hauteur: number }[] = [];
     feuilles.forEach((fe, index) => {
       for (const v of fe.vues) {
         for (const e of img.emplacements) {
           if (e.page !== pageDe(v.contenu)) continue;
-          poses.push({ index, x: v.dx + e.cadre.x, y: v.dy + e.cadre.y, l: e.cadre.l, h: e.cadre.h, clip: v.clip, hauteur: fe.hauteur });
+          poses.push({ index, x: v.dx + e.cadre.x, y: v.dy + e.cadre.y, l: e.cadre.l, h: e.cadre.h, rotation: e.cadre.rotation ?? 0, clip: v.clip, hauteur: fe.hauteur });
         }
       }
     });
@@ -215,10 +230,27 @@ async function poserImages(doc: PDFDocument, stockage: Stockage, images: ImageAI
         clip(),
         endPath(),
       );
-      pg.drawImage(jpeg, { x: p.x * PT, y: (H - p.y - p.h) * PT, width: p.l * PT, height: p.h * PT });
+      if (p.rotation) {
+        // Rotation autour du centre du cadre ; sens horaire à l'écran = angle négatif en PDF (y vers le haut).
+        const a = (-p.rotation * Math.PI) / 180;
+        const cx = (p.x + p.l / 2) * PT;
+        const cy = (H - p.y - p.h / 2) * PT;
+        pg.pushOperators(concatTransformationMatrix(Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a), cx, cy));
+        pg.drawImage(jpeg, { x: (-p.l / 2) * PT, y: (-p.h / 2) * PT, width: p.l * PT, height: p.h * PT });
+      } else {
+        pg.drawImage(jpeg, { x: p.x * PT, y: (H - p.y - p.h) * PT, width: p.l * PT, height: p.h * PT });
+      }
       pg.pushOperators(popGraphicsState());
     }
   }
+}
+
+/** Pose la couche « dessus » (voiles, textes sur les photos), feuille par feuille, après les photos. */
+async function poserDessus(doc: PDFDocument, octets: Uint8Array) {
+  const source = await PDFDocument.load(octets);
+  if (source.getPageCount() !== doc.getPageCount()) throw new Error("Typst : nombre de feuilles inattendu (couche du dessus)");
+  const pages = await doc.embedPdf(source, source.getPageIndices());
+  pages.forEach((p, i) => doc.getPage(i).drawPage(p, { x: 0, y: 0 }));
 }
 
 function metadonnees(doc: PDFDocument, titre: string) {
@@ -266,10 +298,12 @@ export async function assemblerLivre(db: Db, stockage: Stockage, voyageId: strin
   const horodatage = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
   const base = `voyages/${voyageId}/livre/export/${horodatage}-${nomFichier}`;
   const fichiers: FichierExporte[] = [];
+  const dessus = aUneCoucheDessus(c.livre, f, c.ratios);
   for (const fp of fichiersPdf(f, c.livre.pages.length)) {
-    const doc = await PDFDocument.load(await compilerTypst(sourceFeuilles(c.livre, f, fp.feuilles)));
+    const doc = await PDFDocument.load(await compilerTypst(sourceFeuilles(c.livre, f, fp.feuilles, { ratios: c.ratios })));
     if (doc.getPageCount() !== fp.feuilles.length) throw new Error("Typst : nombre de feuilles inattendu");
     await poserImages(doc, stockage, c.images, fp.feuilles);
+    if (dessus) await poserDessus(doc, await compilerTypst(sourceFeuilles(c.livre, f, fp.feuilles, { ratios: c.ratios, couche: "dessus" })));
     fp.feuilles.forEach((fe, i) => {
       const pg = doc.getPage(i);
       pg.setBleedBox(0, 0, fe.largeur * PT, fe.hauteur * PT);

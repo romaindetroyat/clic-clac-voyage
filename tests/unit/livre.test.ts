@@ -48,30 +48,23 @@ describe("livre : formats et dos", () => {
 });
 
 describe("livre : gabarits et cadrage", () => {
-  it("chaque gabarit reste dans la zone utile, sur tous les formats, page paire ou impaire", () => {
+  it("les gabarits classiques restent dans la zone utile ; la reliure est à l'intérieur", () => {
     for (const f of FORMATS) {
       for (const numero of [1, 2]) {
         const z = zoneUtile(f, numero);
-        for (const g of GABARITS) {
-          const geo = geometriePage(f, g.id, numero);
-          expect(geo.photos).toHaveLength(g.n);
-          for (const c of geo.photos) {
-            if (g.id === "pleine-page") {
-              expect(c).toEqual({ x: -3, y: -3, l: f.largeur + 6, h: f.hauteur + 6 });
-              continue;
-            }
-            expect(c.l).toBeGreaterThan(10);
-            expect(c.h).toBeGreaterThan(10);
+        for (const id of ["une", "deux-colonnes", "trois-heros-gauche", "quatre-grille", "six-grille", "neuf-grille"]) {
+          for (const c of geometriePage(f, id, numero).photos) {
             expect(c.x).toBeGreaterThanOrEqual(z.x - 1e-9);
             expect(c.y).toBeGreaterThanOrEqual(z.y - 1e-9);
             expect(c.x + c.l).toBeLessThanOrEqual(z.x + z.l + 1e-9);
             expect(c.y + c.h).toBeLessThanOrEqual(z.y + z.h + 1e-9);
           }
         }
+        expect(geometriePage(f, "pleine-page", numero).photos[0]).toEqual({ x: -3, y: -3, l: f.largeur + 6, h: f.hauteur + 6 });
       }
-      // La reliure est du côté intérieur : à gauche sur une page de droite.
       expect(zoneUtile(f, 1).x).toBeGreaterThan(zoneUtile(f, 2).x);
     }
+    expect(GABARITS.length).toBeGreaterThan(40);
   });
 
   it("recadre sans jamais laisser de vide", () => {

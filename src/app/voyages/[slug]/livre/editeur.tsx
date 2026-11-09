@@ -5,9 +5,11 @@ import { doublesPages, FONDS, PageVue, pageDeCouverture } from "@/components/liv
 import { dpiEffectif } from "@/lib/livre/cadrage";
 import { controler, type Probleme } from "@/lib/livre/controles";
 import { epaisseurDos, FORMATS, formatParId, pagesValides } from "@/lib/livre/formats";
-import { GABARITS, gabaritParId, geometriePage } from "@/lib/livre/gabarits";
+import { AMBIANCES, GABARITS, gabaritParId, geometriePage, IDS_AMBIANCES, legendesParPhoto, type Ambiance } from "@/lib/livre/gabarits";
 import { legendeAuto, mettreEnPage } from "@/lib/livre/mise-en-page";
 import { nouvelId, RYTHMES, type Cellule, type EpisodeLivre, type Livre, type MediaLivre, type PageLivre } from "@/lib/livre/modele";
+import { FONDS as PALETTE, POLICES, IDS_FONDS, IDS_STYLES, STYLES, type IdFond, type IdStyle } from "@/lib/livre/styles";
+import { classesPolicesLivre } from "@/components/livre/polices-livre";
 import { ExportPdf } from "./export-pdf";
 import { Feuilleter } from "./feuilleter";
 
@@ -29,27 +31,50 @@ async function appeler<T>(slug: string, corps: object): Promise<T> {
   return json;
 }
 
-function Miniature({ id }: { id: string }) {
-  // Aperçu schématique d'un gabarit, au format portrait.
-  const f = formatParId("portrait-21x28");
+function Miniature({ id, formatId }: { id: string; formatId: string }) {
+  // Aperçu schématique d'un gabarit, dans le format du livre.
+  const f = formatParId(formatId);
   const geo = geometriePage(f, id, 1);
-  const s = 40 / f.largeur;
+  const L = 44;
+  const s = L / f.largeur;
+  const H = f.hauteur * s;
+  const r = (x: { x: number; y: number; l: number; h: number }, rotation?: number) => ({
+    left: x.x * s,
+    top: x.y * s,
+    width: x.l * s,
+    height: x.h * s,
+    ...(rotation ? { transform: `rotate(${rotation}deg)` } : {}),
+  });
   return (
-    <span className="relative block bg-white" style={{ width: 40, height: f.hauteur * s }} aria-hidden>
-      {geo.photos.map((r, i) => (
-        <span
-          key={i}
-          className="absolute bg-encre-douce/60"
-          style={{ left: Math.max(0, r.x * s), top: Math.max(0, r.y * s), width: Math.min(40, r.l * s), height: Math.min(f.hauteur * s, r.h * s) }}
-        />
+    <span className="relative block overflow-hidden bg-white" style={{ width: L, height: H }} aria-hidden>
+      {geo.formes
+        .filter((x) => !x.trait && x.rect.l * s > 1.5 && x.rect.h * s > 1.5)
+        .map((x, i) => (
+          <span key={`f${i}`} className="absolute" style={{ ...r(x.rect, x.rotation), background: x.teinte === "sombre" ? "#333" : x.teinte === "blanc" ? "#fff" : x.teinte === "voile" ? "rgba(0,0,0,.35)" : "rgba(0,0,0,.08)", boxShadow: x.teinte === "blanc" ? "0 0 0 0.5px rgba(0,0,0,.35)" : undefined }} />
+        ))}
+      {geo.photos.map((x, i) => (
+        <span key={i} className="absolute bg-encre-douce/60" style={r(x, x.rotation)} />
       ))}
       {geo.textes
-        .filter((t) => t.role === "titre" || t.role === "corps")
+        .filter((t) => t.role !== "folio")
         .map((t, i) => (
-          <span key={`t${i}`} className="absolute border-y border-encre-douce/50" style={{ left: t.rect.x * s, top: t.rect.y * s, width: t.rect.l * s, height: Math.min(t.rect.h * s, 8) }} />
+          <span key={`t${i}`} className="absolute border-t border-encre-douce/60" style={{ ...r(t.rect, t.rotation), height: Math.min(t.rect.h * s, t.role === "corps" ? 10 : 2) }} />
         ))}
     </span>
   );
+}
+
+const policeCss = (id: keyof typeof POLICES) => `${POLICES[id].css}, Georgia, serif`;
+
+/** Gabarits proposés pour une page, groupés par nombre de photos. */
+function groupesGabarits(actuel: string) {
+  const groupes = new Map<string, typeof GABARITS>();
+  for (const g of GABARITS) {
+    if (g.famille === "titre" && !gabaritParId(actuel).famille.startsWith("titre")) continue;
+    const cle = g.famille === "photos" ? (g.n === 1 ? "1 photo" : `${g.n} photos`) : g.famille === "ouverture" ? "Ouvertures d’épisode" : g.famille === "titre" ? "Titre" : "Textes et pages blanches";
+    groupes.set(cle, [...(groupes.get(cle) ?? []), g]);
+  }
+  return [...groupes.entries()];
 }
 
 export function EditeurLivre({
@@ -92,7 +117,7 @@ export function EditeurLivre({
   const [exporter, setExporter] = useState(false);
   const [voirProblemes, setVoirProblemes] = useState(false);
   const [reglages, setReglages] = useState<Livre["options"] & { formatId: string }>(
-    initial ? { ...initial.options, formatId: initial.formatId } : { formatId: FORMATS[0].id, ciblePages: 40, rythme: "equilibre", fond: "blanc", legendes: true, commentaires: false },
+    initial ? { ...initial.options, formatId: initial.formatId } : { formatId: FORMATS[0].id, ciblePages: 40, rythme: "equilibre", fond: "blanc", style: "classique", ambiance: "melange", legendes: true, commentaires: false },
   );
   const [largeurPage, setLargeurPage] = useState(220);
   const zone = useRef<HTMLDivElement>(null);
@@ -194,7 +219,15 @@ export function EditeurLivre({
         periode,
         fuseau,
         format: formatParId(reglages.formatId),
-        options: { ciblePages: reglages.ciblePages, rythme: reglages.rythme, fond: reglages.fond, legendes: reglages.legendes, commentaires: reglages.commentaires },
+        options: {
+          ciblePages: reglages.ciblePages,
+          rythme: reglages.rythme,
+          fond: reglages.fond,
+          style: reglages.style,
+          ambiance: reglages.ambiance,
+          legendes: reglages.legendes,
+          commentaires: reglages.commentaires,
+        },
         episodes,
         medias,
         couverture: livre?.couverture,
@@ -285,6 +318,10 @@ export function EditeurLivre({
       const n = gabaritParId(id).n;
       const cellules = [...p.cellules];
       while (cellules.length < n) cellules.push(null);
+      // Gabarit qui légende chaque photo : on reprend les légendes des photos qui n'en ont pas.
+      if (legendesParPhoto(id) && livre?.options.legendes) {
+        for (const [i, c] of cellules.entries()) if (c && !c.legende) cellules[i] = { ...c, legende: legendeAuto([parId.get(c.mediaId)], livre.options.commentaires) || undefined };
+      }
       return { ...p, gabarit: id, cellules };
     });
     setSelection((s) => (s ? { ...s, cellule: null } : s));
@@ -331,12 +368,30 @@ export function EditeurLivre({
   }
 
   function legendesAuto() {
-    majPage((p) => ({ ...p, legende: legendeAuto(p.cellules.map((c) => (c ? parId.get(c.mediaId) : undefined)), livre?.options.commentaires ?? false) }));
+    const com = livre?.options.commentaires ?? false;
+    majPage((p) =>
+      legendesParPhoto(p.gabarit)
+        ? { ...p, cellules: p.cellules.map((c) => (c ? { ...c, legende: legendeAuto([parId.get(c.mediaId)], com) } : c)) }
+        : { ...p, legende: legendeAuto(p.cellules.map((c) => (c ? parId.get(c.mediaId) : undefined)), com) },
+    );
   }
 
   function appliquerReglages() {
     if (!livre) return;
-    modifier((l) => ({ ...l, formatId: reglages.formatId, options: { ...l.options, fond: reglages.fond, legendes: reglages.legendes, commentaires: reglages.commentaires, ciblePages: reglages.ciblePages, rythme: reglages.rythme } }));
+    modifier((l) => ({
+      ...l,
+      formatId: reglages.formatId,
+      options: {
+        ...l.options,
+        fond: reglages.fond,
+        style: reglages.style,
+        ambiance: reglages.ambiance,
+        legendes: reglages.legendes,
+        commentaires: reglages.commentaires,
+        ciblePages: reglages.ciblePages,
+        rythme: reglages.rythme,
+      },
+    }));
   }
 
   /* ---------------------------------- Rendu ---------------------------------- */
@@ -344,7 +399,8 @@ export function EditeurLivre({
   const pageSel = selection && selection.page >= 0 && livre ? livre.pages[selection.page] : null;
   const celluleSel = pageSel && selection?.cellule != null ? (pageSel.cellules[selection.cellule] ?? null) : null;
   const geoSel = pageSel && selection ? geometriePage(format, pageSel.gabarit, selection.page + 1) : null;
-  const roles = new Set(geoSel?.textes.map((t) => t.role));
+  const roles = new Set(geoSel?.textes.filter((t) => !(t.role === "legende" && t.photo != null)).map((t) => t.role));
+  const legendePhoto = !!geoSel && selection?.cellule != null && geoSel.textes.some((t) => t.role === "legende" && t.photo === selection.cellule);
   const mediaSel = celluleSel ? parId.get(celluleSel.mediaId) : undefined;
   const cadreSel = geoSel && selection?.cellule != null ? geoSel.photos[selection.cellule] : null;
   const dpiSel = mediaSel && cadreSel && celluleSel ? dpiEffectif(mediaSel.largeur, mediaSel.hauteur, cadreSel.l, cadreSel.h, celluleSel) : null;
@@ -352,13 +408,15 @@ export function EditeurLivre({
     !!livre &&
     (reglages.formatId !== livre.formatId ||
       reglages.fond !== livre.options.fond ||
+      (reglages.style ?? "classique") !== (livre.options.style ?? "classique") ||
+      (reglages.ambiance ?? "melange") !== (livre.options.ambiance ?? "melange") ||
       reglages.legendes !== livre.options.legendes ||
       reglages.commentaires !== livre.options.commentaires ||
       reglages.ciblePages !== livre.options.ciblePages ||
       reglages.rythme !== livre.options.rythme);
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${classesPolicesLivre}`}>
       {/* Réglages généraux */}
       <section className="space-y-3 rounded-lg border border-filet p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -398,11 +456,56 @@ export function EditeurLivre({
           </label>
           <label className="block space-y-1.5">
             <span className="etiquette">Fond des pages</span>
-            <select className="champ" value={reglages.fond} onChange={(e) => setReglages({ ...reglages, fond: e.target.value as "blanc" | "noir" })}>
-              <option value="blanc">Blanc cassé</option>
-              <option value="noir">Noir</option>
+            <select className="champ" value={reglages.fond} onChange={(e) => setReglages({ ...reglages, fond: e.target.value as IdFond })}>
+              {IDS_FONDS.map((id) => (
+                <option key={id} value={id}>
+                  {PALETTE[id].nom}
+                </option>
+              ))}
             </select>
           </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1.5">
+            <span className="etiquette">Ambiance de la mise en page</span>
+            <select className="champ" value={reglages.ambiance ?? "melange"} onChange={(e) => setReglages({ ...reglages, ambiance: e.target.value as Ambiance })}>
+              {IDS_AMBIANCES.map((id) => (
+                <option key={id} value={id}>
+                  {AMBIANCES[id].nom}
+                </option>
+              ))}
+            </select>
+            <span className="block text-xs text-encre-douce">{AMBIANCES[reglages.ambiance ?? "melange"].description}</span>
+          </label>
+          <div className="space-y-1.5">
+            <span className="etiquette" id="etiquette-style">
+              Style des titres et des légendes
+            </span>
+            <div role="radiogroup" aria-labelledby="etiquette-style" className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto pr-1">
+              {IDS_STYLES.map((id) => {
+                const st = STYLES[id];
+                const choisi = (reglages.style ?? "classique") === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={choisi}
+                    aria-label={`Style ${st.nom}`}
+                    onClick={() => setReglages({ ...reglages, style: id as IdStyle })}
+                    className={`rounded border p-2 text-left ${choisi ? "border-encre ring-2 ring-encre" : "border-filet hover:bg-papier-2"}`}
+                  >
+                    <span className="block truncate" style={{ fontFamily: policeCss(st.titre.police), fontSize: 18, lineHeight: 1.1, fontStyle: st.titre.italique ? "italic" : undefined, textTransform: st.titre.majuscules ? "uppercase" : undefined }}>
+                      {st.nom}
+                    </span>
+                    <span className="block truncate text-encre-douce" style={{ fontFamily: policeCss(st.legende.police), fontSize: 13, fontStyle: st.legende.italique ? "italic" : undefined, textTransform: st.legende.majuscules ? "uppercase" : undefined }}>
+                      Coucher de soleil à Oia
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
         <div className="flex flex-wrap gap-x-6">
           <label className="flex min-h-11 items-center gap-2">
@@ -505,6 +608,7 @@ export function EditeurLivre({
                       numero={0}
                       format={format}
                       fond={livre.options.fond}
+                      style={livre.options.style}
                       medias={parId}
                       largeur={largeurPage}
                       selection={selection?.page === -1 ? { cellule: 0 } : null}
@@ -528,6 +632,7 @@ export function EditeurLivre({
                             numero={j + 1}
                             format={format}
                             fond={livre.options.fond}
+                            style={livre.options.style}
                             medias={parId}
                             largeur={largeurPage}
                             selection={selection?.page === j ? { cellule: selection.cellule } : null}
@@ -597,6 +702,18 @@ export function EditeurLivre({
                           {dpiSel != null ? (
                             <p className={`text-sm ${dpiSel < 150 ? "text-danger" : dpiSel < 250 ? "text-accent" : "text-encre-douce"}`}>Résolution : {dpiSel} dpi</p>
                           ) : null}
+                          {legendePhoto ? (
+                            <label className="block space-y-1.5">
+                              <span className="etiquette">Légende de cette photo</span>
+                              <textarea
+                                className="champ"
+                                rows={2}
+                                maxLength={300}
+                                value={celluleSel.legende ?? ""}
+                                onChange={(e) => majCellule((c) => ({ ...c, legende: e.target.value }))}
+                              />
+                            </label>
+                          ) : null}
                         </>
                       ) : (
                         <p className="text-sm text-encre-douce">Cadre vide.</p>
@@ -632,23 +749,47 @@ export function EditeurLivre({
 
                   <div className="space-y-1.5">
                     <p className="etiquette">Gabarit</p>
-                    <div role="radiogroup" aria-label="Gabarit" className="flex flex-wrap gap-1.5">
-                      {GABARITS.filter((g) => g.famille !== "titre" || pageSel.gabarit === "titre").map((g) => (
-                        <button
-                          key={g.id}
-                          type="button"
-                          role="radio"
-                          aria-checked={pageSel.gabarit === g.id}
-                          title={g.nom}
-                          aria-label={g.nom}
-                          onClick={() => changerGabarit(g.id)}
-                          className={`rounded p-1 ${pageSel.gabarit === g.id ? "bg-encre/10 ring-2 ring-encre" : "hover:bg-papier-2"}`}
-                        >
-                          <Miniature id={g.id} />
-                        </button>
+                    <div role="radiogroup" aria-label="Gabarit" className="max-h-96 space-y-2 overflow-y-auto pr-1">
+                      {groupesGabarits(pageSel.gabarit).map(([groupe, liste]) => (
+                        <div key={groupe}>
+                          <p className="text-xs text-encre-douce">{groupe}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {liste.map((g) => (
+                              <button
+                                key={g.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={pageSel.gabarit === g.id}
+                                title={g.nom}
+                                aria-label={g.nom}
+                                onClick={() => changerGabarit(g.id)}
+                                className={`rounded p-1 ${pageSel.gabarit === g.id ? "bg-encre/10 ring-2 ring-encre" : "hover:bg-papier-2"}`}
+                              >
+                                <Miniature id={g.id} formatId={livre.formatId} />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
+                    <p className="text-xs text-encre-douce">{gabaritParId(pageSel.gabarit).nom}</p>
                   </div>
+
+                  <label className="block space-y-1.5">
+                    <span className="etiquette">Fond de cette page</span>
+                    <select
+                      className="champ"
+                      value={pageSel.fond ?? ""}
+                      onChange={(e) => majPage((p) => ({ ...p, fond: (e.target.value || undefined) as IdFond | undefined }))}
+                    >
+                      <option value="">Comme le livre ({PALETTE[livre.options.fond].nom})</option>
+                      {IDS_FONDS.map((id) => (
+                        <option key={id} value={id}>
+                          {PALETTE[id].nom}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
                   {roles.has("surtitre") ? (
                     <label className="block space-y-1.5">
@@ -678,6 +819,16 @@ export function EditeurLivre({
                         Reprendre les légendes des photos
                       </button>
                     </div>
+                  ) : null}
+
+                  {!roles.has("legende") && legendesParPhoto(pageSel.gabarit) ? (
+                    <p className="text-sm text-encre-douce">
+                      Chaque photo a sa légende : touchez une photo pour l’écrire, ou{" "}
+                      <button type="button" className="underline underline-offset-4" onClick={legendesAuto}>
+                        reprenez les légendes des photos
+                      </button>
+                      .
+                    </p>
                   ) : null}
 
                   <div className="flex flex-wrap gap-2 border-t border-filet pt-3">

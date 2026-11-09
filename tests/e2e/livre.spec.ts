@@ -24,15 +24,21 @@ test("livre : mise en page automatique, édition, contrôles, versions, feuillet
   await page.getByRole("link", { name: "Livre" }).click();
   await expect(page.getByText("6 photos cochées « Dans le livre »")).toBeVisible();
   await page.getByLabel("Nombre de pages visé").fill("24");
+  // Style des titres et légendes, ambiance et fond.
+  await page.getByRole("radio", { name: "Style Machine à écrire" }).click();
+  await expect(page.getByRole("radio", { name: "Style Machine à écrire" })).toHaveAttribute("aria-checked", "true");
+  await page.getByLabel("Ambiance de la mise en page").selectOption({ label: "Classique" });
+  await page.getByLabel("Fond des pages").selectOption({ label: "Crème" });
   await page.getByRole("button", { name: "Créer le livre automatiquement" }).click();
   await expect(page.getByText(/page\(s\) blanche\(s\) ajoutée\(s\)/)).toBeVisible();
+  await expect(page.locator('[data-page="1"] [data-role="titre"]')).toHaveCSS("font-family", /Special Elite/);
   await expect(page.getByText("24 pages · dos")).toBeVisible();
   await expect(page.locator("[data-page]")).toHaveCount(25); // couverture + 24 pages
   await expect(page.locator('[data-page="1"]')).toContainText("Livre Cyclades");
   await expect(page.getByRole("status").filter({ hasText: "Enregistré" })).toBeVisible();
 
-  // Les photos de test (1 600 px) sont trop petites pour une page entière : contrôle bloquant.
-  await expect(page.getByRole("button", { name: /problèmes? bloquants?/ })).toBeVisible();
+  // La mise en page évite les cadres trop grands pour les photos de test (1 600 px) : rien de bloquant.
+  await expect(page.getByRole("button", { name: /alertes?|Prêt pour l’impression/ })).toBeVisible();
 
   // Page 2 (ouverture d'épisode) : titre modifié, gabarit changé.
   await page.locator('[data-page="2"]').click();
@@ -83,6 +89,16 @@ test("livre : mise en page automatique, édition, contrôles, versions, feuillet
   await expect(f.getByText("Pages 2 – 3 · 3 / 14")).toBeVisible();
   await f.getByRole("button", { name: "Fermer" }).click();
   await expect(f).toHaveCount(0);
+
+  // Gabarit créatif : deux polaroïds, chacun sa légende ; fond propre à la page.
+  await page.locator('[data-page="3"]').click();
+  await page.getByRole("radio", { name: "Deux polaroïds" }).click();
+  await expect(page.locator('[data-page="3"] [data-cellule]')).toHaveCount(2);
+  await page.locator('[data-page="3"] [data-cellule="0"]').click();
+  await page.getByRole("textbox", { name: "Légende de cette photo" }).fill("Le port de Naxos au matin");
+  await expect(page.locator('[data-page="3"] [data-role="legende"]').filter({ hasText: "Le port de Naxos au matin" })).toBeVisible();
+  await page.getByLabel("Fond de cette page").selectOption({ label: "Sauge" });
+  await expect(page.locator('[data-page="3"]')).toHaveCSS("background-color", "rgb(223, 228, 214)");
 });
 
 test("livre : export PDF d'impression (photos préparées dans le navigateur, assemblage serveur)", async ({ page }) => {

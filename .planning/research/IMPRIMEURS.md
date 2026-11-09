@@ -618,3 +618,15 @@ Le modèle de livre reste indépendant de l'imprimeur ; chaque **profil imprimeu
 11. **Typo minimale** (repère Saal) : 8 pt sans empattement, 10 pt avec empattement, filets ≥ 1 pt.
 12. **Poids max de fichier** : aucune valeur trouvée ; prévoir un champ par imprimeur, et compresser les images à la résolution utile.
 13. **Fraîcheur** : chaque valeur porte sa source URL, sa date de relevé et son statut (vérifié, secondaire, non vérifié).
+
+## Rosemood (étudié en novembre 2026, non ajouté au comparateur)
+
+- Imprimeur français (atelier à Treillières, près de Nantes ; groupe Celebrate Company). Trustpilot ≈ 4,6/5.
+- **Pas d'import de PDF** ni d'API publique, ni marque blanche ou affiliation repérées : tout passe par leur éditeur en ligne.
+  Contournement possible : exporter une image par page et utiliser leur modèle « 1 photo pleine page » (manuel, recadrage
+  et retouche couleur non maîtrisés, fond perdu et résolution non publiés).
+- Formats : souple 15×15 à 28,6×22 (14,90 à 29,90 € les 24 pages, +1,10 à 1,70 € la double page), rigide 20×20, 25×25,
+  22×28,6, 28,6×22, tissu, ouverture à plat ; 24 à 200 pages. Fabrication 3 à 5 jours ouvrés, livraison 7,50 € (2 à 3 jours).
+  Source : https://www.rosemood.fr/album-photo/livre-photo/tarifs-formats/ et /delais-livraison/
+- CGV : revente interdite (art. 11) ; un partenariat demande un accord écrit. Contact : entreprise@rosemood.fr.
+- Conclusion : pas intégrable au flux « PDF prêt à imprimer » ; piste = demande de partenariat (PDF fourni, tarif partenaire).

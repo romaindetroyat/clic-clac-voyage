@@ -58,7 +58,7 @@ export function Feuilleter({ livre, format, medias, onFermer, fond }: { livre: L
       <div className="flex flex-1 items-center justify-center">
         {i === 0 ? (
           <div className="shadow-2xl" style={{ background: fond }}>
-            <PageVue page={pageDeCouverture(livre.couverture)} numero={0} format={format} fond={livre.options.fond} medias={medias} largeur={largeur} />
+            <PageVue page={pageDeCouverture(livre.couverture)} numero={0} format={format} fond={livre.options.fond} style={livre.options.style} medias={medias} largeur={largeur} />
           </div>
         ) : (
           <div className="flex shadow-2xl">
@@ -66,7 +66,7 @@ export function Feuilleter({ livre, format, medias, onFermer, fond }: { livre: L
               j == null ? (
                 <div key={k} style={{ width: largeur }} />
               ) : (
-                <PageVue key={k} page={livre.pages[j]} numero={j + 1} format={format} fond={livre.options.fond} medias={medias} largeur={largeur} className={k === 0 ? "border-r border-black/10" : ""} />
+                <PageVue key={k} page={livre.pages[j]} numero={j + 1} format={format} fond={livre.options.fond} style={livre.options.style} medias={medias} largeur={largeur} className={k === 0 ? "border-r border-black/10" : ""} />
               ),
             )}
           </div>

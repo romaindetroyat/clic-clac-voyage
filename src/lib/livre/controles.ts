@@ -4,8 +4,9 @@
  */
 import { dpiEffectif } from "./cadrage";
 import type { Format } from "./formats";
-import { geometriePage, type CadreTexte, type Rect } from "./gabarits";
-import type { Livre, MediaLivre } from "./modele";
+import { geometriePage, texteDuCadre, type CadreTexte, type Rect } from "./gabarits";
+import { ratiosDe, type Livre, type MediaLivre } from "./modele";
+import { interligne, STYLES, styleTypo } from "./styles";
 
 export const DPI_ALERTE = 250;
 export const DPI_BLOQUANT = 150;
@@ -18,24 +19,25 @@ export type Probleme = {
   message: string;
 };
 
-/** Tailles des textes du livre (points typographiques). */
-export const TAILLES: Record<CadreTexte["role"], number> = { titre: 26, surtitre: 8, corps: 10.5, legende: 7.5, folio: 7 };
+/** Tailles des textes du style classique (points typographiques). */
+export const TAILLES: Record<CadreTexte["role"], number> = {
+  titre: STYLES.classique.titre.taille,
+  surtitre: STYLES.classique.surtitre.taille,
+  corps: STYLES.classique.corps.taille,
+  legende: STYLES.classique.legende.taille,
+  folio: STYLES.classique.folio.taille,
+};
 const PT = 0.3528; // mm
 
 /** Estimation prudente du nombre de caractères qui tiennent dans un cadre. */
-export function capaciteTexte(rect: Rect, role: CadreTexte["role"]): number {
-  const t = TAILLES[role] * PT;
-  const parLigne = Math.floor(rect.l / (t * 0.5));
-  const lignes = Math.floor(rect.h / (t * (role === "corps" ? 1.45 : 1.2)));
+export function capaciteTexte(rect: Rect, role: CadreTexte["role"], style?: string, echelle = 1): number {
+  const typo = styleTypo(style)[role];
+  const t = typo.taille * echelle * PT;
+  // Capitales espacées : plus larges.
+  const chasse = 0.5 + (typo.majuscules ? 0.15 : 0) + (typo.suivi ?? 0);
+  const parLigne = Math.floor(rect.l / (t * chasse));
+  const lignes = Math.floor(rect.h / (t * interligne(typo, role)));
   return Math.max(0, parLigne * lignes);
-}
-
-function texteDe(p: Livre["pages"][number], role: CadreTexte["role"]): string {
-  if (role === "titre") return p.titre ?? "";
-  if (role === "surtitre") return p.surtitre ?? "";
-  if (role === "corps") return p.corps ?? "";
-  if (role === "legende") return p.legende ?? "";
-  return "";
 }
 
 export function controler(livre: Livre, f: Format, medias: Map<string, MediaLivre>): Probleme[] {
@@ -48,7 +50,7 @@ export function controler(livre: Livre, f: Format, medias: Map<string, MediaLivr
   const vus = new Map<string, number>();
   livre.pages.forEach((p, i) => {
     const numero = i + 1;
-    const geo = geometriePage(f, p.gabarit, numero);
+    const geo = geometriePage(f, p.gabarit, numero, ratiosDe(p.cellules, (id) => medias.get(id)));
     geo.photos.forEach((cadre, ci) => {
       const c = p.cellules[ci];
       if (!c) {
@@ -69,7 +71,8 @@ export function controler(livre: Livre, f: Format, medias: Map<string, MediaLivr
       r.push({ niveau: "alerte", page: numero, message: "Des photos ne sont plus affichées par ce gabarit." });
     }
     for (const t of geo.textes) {
-      const texte = texteDe(p, t.role);
+      if (t.role === "folio") continue;
+      const texte = texteDuCadre(p, t, numero);
       if (!texte) continue;
       const rect = t.rect;
       const pres = Math.min(rect.x, rect.y, f.largeur - rect.x - rect.l, f.hauteur - rect.y - rect.h);
@@ -77,7 +80,7 @@ export function controler(livre: Livre, f: Format, medias: Map<string, MediaLivr
       const reliureGauche = numero % 2 === 1;
       const distPli = reliureGauche ? rect.x : f.largeur - rect.x - rect.l;
       if (distPli < f.pli) r.push({ niveau: "alerte", page: numero, message: "Texte trop près du pli." });
-      if (texte.length > capaciteTexte(rect, t.role)) {
+      if (texte.length > capaciteTexte(rect, t.role, livre.options.style, t.echelle)) {
         r.push({ niveau: "alerte", page: numero, message: `Texte trop long pour son cadre (${t.role === "corps" ? "récit" : t.role}) : il sera coupé.` });
       }
     }
