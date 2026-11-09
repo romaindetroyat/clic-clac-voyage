@@ -86,6 +86,39 @@ export const IDS_PRESENTATIONS = Object.keys(PRESENTATIONS) as Presentation[];
 
 const couleur = z.string().regex(/^#[0-9a-f]{6}$/i);
 
+/** Dispositions de photos du carnet, choisies dans l'éditeur visuel. */
+export const TYPES_BLOCS = {
+  grande: { nom: "Pleine largeur", min: 1, max: 1 },
+  centree: { nom: "Centrée, légende à côté", min: 1, max: 1 },
+  note: { nom: "Photo et ses mots", min: 1, max: 1 },
+  rangee: { nom: "Rangée", min: 2, max: 5 },
+  duo: { nom: "Duo décalé", min: 2, max: 2 },
+  mosaique: { nom: "Mosaïque", min: 3, max: 7 },
+  defilement: { nom: "Défilement", min: 2, max: 12 },
+} as const;
+export type TypeBloc = keyof typeof TYPES_BLOCS;
+export const IDS_TYPES_BLOCS = Object.keys(TYPES_BLOCS) as TypeBloc[];
+
+/** Formats de recadrage proposés (largeur / hauteur), « original » = celui de la photo. */
+export const FORMATS_RECADRAGE = { original: null, "1:1": 1, "4:5": 0.8, "3:4": 0.75, "2:3": 2 / 3, "4:3": 4 / 3, "3:2": 1.5, "16:9": 16 / 9, "21:9": 21 / 9 } as const;
+export type FormatRecadrage = keyof typeof FORMATS_RECADRAGE;
+
+export const schemaCadrage = z.object({
+  zoom: z.number().min(1).max(4),
+  /** Point de la photo gardé au centre (0 à 1). */
+  cx: z.number().min(0).max(1),
+  cy: z.number().min(0).max(1),
+  format: z.enum(Object.keys(FORMATS_RECADRAGE) as [FormatRecadrage, ...FormatRecadrage[]]).default("original"),
+});
+export type Cadrage = z.infer<typeof schemaCadrage>;
+
+export const schemaBlocSite = z.object({
+  type: z.enum(IDS_TYPES_BLOCS as [TypeBloc, ...TypeBloc[]]),
+  ids: z.array(z.string().max(64)).min(1).max(12),
+  cote: z.enum(["gauche", "droite"]).optional(),
+});
+export type BlocSite = z.infer<typeof schemaBlocSite>;
+
 export const schemaConfigSite = z.object({
   theme: z.enum(IDS_THEMES as [IdTheme, ...IdTheme[]]),
   polices: z.enum(IDS_POLICES as [IdPolices, ...IdPolices[]]),
@@ -110,6 +143,10 @@ export const schemaConfigSite = z.object({
   organisation: z.enum(["auto", "jours", "episodes"]).default("auto"),
   // Journal en direct : « auto » l'active pendant les dates du voyage.
   journal: z.enum(["auto", "oui", "non"]).default("auto"),
+  // Éditeur visuel : disposition des photos par partie de chapitre, recadrages, photos d'ouverture.
+  mise: z.record(z.string().max(160), z.array(schemaBlocSite).max(400)).default({}),
+  cadrages: z.record(z.string().max(64), schemaCadrage).default({}),
+  ouvertures: z.record(z.string().max(160), z.string().max(64)).default({}),
 });
 
 export type ConfigSite = z.infer<typeof schemaConfigSite>;
@@ -127,6 +164,9 @@ export function configParDefaut(theme: IdTheme = "neutre-elegant"): ConfigSite {
     afficher: { legendes: true, auteurs: true, commentaires: true, reactions: true },
     organisation: "auto",
     journal: "auto",
+    mise: {},
+    cadrages: {},
+    ouvertures: {},
   };
 }
 

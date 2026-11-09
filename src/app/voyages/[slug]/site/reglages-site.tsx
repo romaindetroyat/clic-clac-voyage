@@ -124,9 +124,14 @@ export function ReglagesSite({
           Le site se met à jour tout seul avec les photos cochées « Dans le site ». Choisissez ici son allure et ce
           qu’il montre.
         </p>
-        <a href={`/v/${slug}`} target="_blank" className="bouton-discret">
-          Ouvrir le site ↗
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <a href={`/voyages/${slug}/site/editer`} className="bouton">
+            Modifier le site visuellement
+          </a>
+          <a href={`/v/${slug}`} target="_blank" className="bouton-discret">
+            Ouvrir le site ↗
+          </a>
+        </div>
       </div>
 
       <Groupe titre="Thème">

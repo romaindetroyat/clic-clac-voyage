@@ -92,7 +92,9 @@ export async function configSite(db: Db, voyageId: string): Promise<ConfigSite> 
 export async function enregistrerConfigSite(db: Db, voyageId: string, brut: unknown) {
   const r = schemaConfigSite.safeParse(brut);
   if (!r.success) throw new ErreurMetier("Réglages du site invalides.");
-  const c = r.data;
+  // Ce que l'éditeur visuel règle (dispositions, recadrages, ouvertures) ne passe que par enregistrerEdition.
+  const actuel = await configSite(db, voyageId);
+  const c = { ...r.data, mise: actuel.mise, cadrages: actuel.cadrages, ouvertures: actuel.ouvertures };
   if (c.couvertureId) {
     const m = await db.query.media.findFirst({
       where: and(eq(media.id, c.couvertureId), eq(media.voyageId, voyageId), eq(media.type, "photo")),
@@ -101,6 +103,31 @@ export async function enregistrerConfigSite(db: Db, voyageId: string, brut: unkn
     if (!m) throw new ErreurMetier("Photo de couverture introuvable.");
   }
   await db.update(voyage).set({ site: c }).where(eq(voyage.id, voyageId));
+}
+
+const schemaEdition = schemaConfigSite.pick({ mise: true, cadrages: true, ouvertures: true });
+
+/** Enregistre ce que règle l'éditeur visuel : dispositions des photos, recadrages, photos d'ouverture. */
+export async function enregistrerEdition(db: Db, voyageId: string, brut: unknown) {
+  const r = schemaEdition.safeParse(brut);
+  if (!r.success) throw new ErreurMetier("Mise en page du site invalide.");
+  const actuel = await configSite(db, voyageId);
+  await db
+    .update(voyage)
+    .set({ site: { ...actuel, ...r.data } })
+    .where(eq(voyage.id, voyageId));
+}
+
+/** Titre et récit d'un épisode, modifiés depuis l'éditeur visuel (le lieu est gardé). */
+export async function modifierChapitre(db: Db, voyageId: string, episodeId: string, d: { titre?: string; recit?: string | null }) {
+  const e = await db.query.episode.findFirst({ where: and(eq(episode.id, episodeId), eq(episode.voyageId, voyageId)) });
+  if (!e) throw new ErreurMetier("Épisode introuvable.");
+  const titre = d.titre === undefined ? e.titre : d.titre.trim();
+  if (!titre) throw new ErreurMetier("Le titre est obligatoire.");
+  await db
+    .update(episode)
+    .set({ titre, recit: d.recit === undefined ? e.recit : d.recit?.trim() || null })
+    .where(eq(episode.id, episodeId));
 }
 
 export async function choisirPresentation(db: Db, voyageId: string, episodeId: string, p: string) {

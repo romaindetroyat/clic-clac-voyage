@@ -1,0 +1,1 @@
+ALTER TYPE "public"."usage_ia" ADD VALUE 'site';

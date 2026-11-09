@@ -28,7 +28,7 @@ export async function verifierBudget(db: Db, estimationUsd: number, plafondEur?:
   }
 }
 
-export async function enregistrerDepense(db: Db, d: { voyageId: string | null; usage: "rafale" | "imprimeur"; u: UsageIa }) {
+export async function enregistrerDepense(db: Db, d: { voyageId: string | null; usage: "rafale" | "imprimeur" | "site"; u: UsageIa }) {
   await db.insert(depenseIa).values({
     id: randomUUID(),
     voyageId: d.voyageId,
