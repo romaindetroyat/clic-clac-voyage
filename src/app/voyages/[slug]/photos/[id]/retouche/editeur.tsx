@@ -191,10 +191,10 @@ export function Editeur({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-      {/* Sur téléphone, l'aperçu reste visible en haut pendant qu'on fait défiler les réglages. */}
-      <div className="sticky top-0 z-20 -mx-4 space-y-2 bg-papier px-4 pb-2 pt-1 lg:static lg:mx-0 lg:px-0">
+      {/* L'aperçu reste toujours visible (en haut sur téléphone, à gauche sur ordinateur) pendant qu'on fait défiler les réglages. */}
+      <div className="sticky top-0 z-20 -mx-4 space-y-2 self-start bg-papier px-4 pb-2 pt-1 lg:top-4 lg:mx-0 lg:px-0">
         <div className="flex min-h-48 items-center justify-center rounded-lg bg-[#151412] p-2">
-          <canvas ref={canevas} className="max-h-[36vh] max-w-full lg:max-h-[60vh]" aria-label={`Aperçu de ${nom}`} data-testid="apercu-retouche" />
+          <canvas ref={canevas} className="max-h-[36vh] max-w-full lg:max-h-[calc(100vh-9rem)]" aria-label={`Aperçu de ${nom}`} data-testid="apercu-retouche" />
           {!image && !erreur ? <p className="absolute text-sm text-white/60">Chargement…</p> : null}
         </div>
         <div className="flex gap-2 text-sm">
