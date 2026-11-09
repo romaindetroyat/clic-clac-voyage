@@ -18,6 +18,14 @@ test("retouche : noir et blanc enregistré, versions web retouchées partout, or
   await page.getByRole("button", { name: "Photo IMG_0002.jpg" }).click();
   await page.getByRole("link", { name: "Retoucher" }).click();
   await expect(page.getByTestId("apercu-retouche")).toBeVisible();
+  // L'aperçu reste à l'écran quand on descend jusqu'aux derniers réglages (téléphone, puis ordinateur).
+  await page.getByLabel("Vignettage").scrollIntoViewIfNeeded();
+  await expect(page.getByTestId("apercu-retouche")).toBeInViewport();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole("button", { name: "Froid" }).scrollIntoViewIfNeeded();
+  await page.mouse.wheel(0, 2000);
+  await expect(page.getByTestId("apercu-retouche")).toBeInViewport();
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Noir et blanc" }).click();
   await page.getByLabel("Lumière", { exact: true }).fill("0.3");
   await page.getByRole("button", { name: "Tourner à droite" }).click();
