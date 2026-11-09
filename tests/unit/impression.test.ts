@@ -56,6 +56,41 @@ describe("impression : source Typst", () => {
   });
 });
 
+describe("impression : styles et gabarits créatifs", () => {
+  it("chaque style embarque ses polices ; chaque gabarit compile, couche du dessus comprise", async () => {
+    const { GABARITS } = await import("@/lib/livre/gabarits");
+    const { IDS_STYLES, POLICES, STYLES } = await import("@/lib/livre/styles");
+    const medias = Array.from({ length: 9 }, (_, i) => ({
+      id: `m${i}`, largeur: i % 2 ? 3000 : 4000, hauteur: i % 2 ? 4000 : 3000, episodeId: "e", instant: null, legende: `Légende ${i} : « été » à l’Hôtel`,
+      auteur: null, vedette: false, qualite: null, vignette: null, moyenne: null, commentaires: [],
+    }));
+    const base = mettreEnPage({
+      nom: "Été à Naxos", periode: "août 2026", fuseau: "UTC", format: carre,
+      options: { ciblePages: 24, rythme: "equilibre", fond: "blanc", legendes: true, commentaires: false },
+      episodes: [{ id: "e", titre: "L’arrivée", lieu: null, recit: "Le ferry accoste.", debut: null, fin: null }], medias,
+    }).livre;
+    // Une page par gabarit, toutes les photos légendées.
+    const pages = GABARITS.map((g, i) => ({
+      id: `p${i}`, gabarit: g.id, titre: "Titre", surtitre: "Surtitre", corps: "Récit de la journée.", legende: "Légende de page",
+      cellules: Array.from({ length: g.n }, (_, j) => ({ mediaId: `m${j}`, zoom: 1, cx: 0.5, cy: 0.5, legende: `Photo ${j}` })),
+      fond: i % 3 ? undefined : ("sauge" as const),
+    }));
+    const ratios = new Map(medias.map((m) => [m.id, m.largeur / m.hauteur]));
+    for (const style of IDS_STYLES) {
+      const livre = { ...base, options: { ...base.options, style, fond: "ocean" as const }, pages: pages.length % 2 ? [...pages, { id: "v", gabarit: "vierge", cellules: [] }] : pages };
+      const [fi] = fichiersPdf(carre, livre.pages.length);
+      const dessous = Buffer.from(await compilerTypst(sourceFeuilles(livre, carre, fi.feuilles, { ratios }))).toString("latin1");
+      const dessus = await compilerTypst(sourceFeuilles(livre, carre, fi.feuilles, { ratios, couche: "dessus" }));
+      expect((await PDFDocument.load(dessus)).getPageCount()).toBe(livre.pages.length);
+      const st = STYLES[style];
+      for (const r of ["titre", "corps", "legende"] as const) {
+        const famille = POLICES[st[r].police].famille.replace(/ /g, "");
+        expect(dessous, `${style} ${r}`).toMatch(new RegExp(`/FontName\\s*/[A-Z]{6}\\+${famille}`));
+      }
+    }
+  }, 60_000);
+});
+
 describe("impression : plan et assemblage", () => {
   let db: Db;
   let voyageId: string;

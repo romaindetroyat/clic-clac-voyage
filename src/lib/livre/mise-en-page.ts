@@ -12,8 +12,8 @@
  */
 import type { Format } from "./formats";
 import { pagesValides } from "./formats";
-import { coutRecadrage } from "./cadrage";
-import { GABARITS, geometriePage, zoneUtile, type Gabarit } from "./gabarits";
+import { coutRecadrage, dpiEffectif } from "./cadrage";
+import { AMBIANCES, cadresAjustes, gabaritsAmbiance, geometriePage, legendesParPhoto, zoneUtile, type Gabarit } from "./gabarits";
 import { nouvelId, type EpisodeLivre, type Livre, type MediaLivre, type PageLivre, type Rythme } from "./modele";
 
 const DENSITE: Record<Rythme, number> = { dense: 4.5, equilibre: 2.8, aere: 1.7 };
@@ -40,14 +40,20 @@ function importance(m: MediaLivre): number {
 type Choix = { gabarit: Gabarit; ordre: number[]; cout: number };
 
 /** Gabarits candidats et leurs cadres, pour un format (mêmes dimensions page paire ou impaire). */
-function candidats(f: Format) {
+function candidats(f: Format, ambiance: Livre["options"]["ambiance"]) {
   const aireZone = (() => {
     const z = zoneUtile(f, 1);
     return z.l * z.h;
   })();
-  return GABARITS.filter((g) => g.auto && g.famille === "photos").map((g) => {
+  return gabaritsAmbiance(ambiance).map((g) => {
     const cadres = geometriePage(f, g.id, 1).photos;
-    return { gabarit: g, ratios: cadres.map((c) => c.l / c.h), aires: cadres.map((c) => Math.min(1.2, (c.l * c.h) / aireZone)) };
+    return {
+      gabarit: g,
+      ratios: cadres.map((c) => c.l / c.h),
+      largeurs: cadres.map((c) => c.l),
+      aires: cadres.map((c) => Math.min(1.2, (c.l * c.h) / aireZone)),
+      ajustes: cadresAjustes(f, g.id),
+    };
   });
 }
 
@@ -80,8 +86,15 @@ function poser(photos: MediaLivre[], c: ReturnType<typeof candidats>[number], de
     let cout = 0.35 * Math.abs(k - densite);
     ordre.forEach((pi, ci) => {
       const m = photos[pi];
-      cout += 1.2 * coutRecadrage(m.largeur / m.hauteur, c.ratios[ci]);
+      // Un cadre qui s'ajuste ne recadre pas : il perd seulement un peu de surface.
+      cout += (c.ajustes[ci] ? 0.25 : 1.2) * coutRecadrage(m.largeur / m.hauteur, c.ratios[ci]);
       cout += (importance(m) - 1) * (1 - Math.min(1, c.aires[ci])) * 1.5;
+      // Résolution : une photo trop petite pour son cadre serait floue à l'impression.
+      const ratio = c.ratios[ci];
+      const pixels = c.ajustes[ci] ? m.largeur : Math.min(m.largeur, m.hauteur * ratio);
+      const dpi = pixels / (c.largeurs[ci] / 25.4);
+      if (dpi < 160) cout += 6;
+      else if (dpi < 250) cout += 0.4;
     });
     if (c.gabarit.id === "pleine-page" && !photos[0].vedette) cout += 0.5;
     // Garder à peu près l'ordre chronologique de lecture sur la page.
@@ -180,11 +193,25 @@ export function legendeAuto(photos: (MediaLivre | undefined)[], commentaires: bo
     .join(" · ");
 }
 
+/**
+ * Gabarit d'ouverture : ceux de l'ambiance à tour de rôle, sauf si la photo y serait trop peu définie
+ * (une pleine page demande beaucoup de pixels) ; on prend alors celui où elle est la plus nette.
+ */
+function choisirOuverture(f: Format, ouvertures: readonly string[], i: number, m: MediaLivre, numero: number): string {
+  const tour = [...ouvertures.slice(i % ouvertures.length), ...ouvertures.slice(0, i % ouvertures.length), "ouverture-galerie", "ouverture"];
+  const dpi = (id: string) => {
+    const c = geometriePage(f, id, numero, [m.largeur / m.hauteur]).photos[0];
+    return c ? dpiEffectif(m.largeur, m.hauteur, c.l, c.h, { zoom: 1, cx: 0.5, cy: 0.5 }) : 0;
+  };
+  return tour.find((id) => dpi(id) >= 220) ?? tour.reduce((a, b) => (dpi(b) > dpi(a) ? b : a));
+}
+
 export function mettreEnPage(e: EntreeMiseEnPage): { livre: Livre; rapport: RapportMiseEnPage } {
   const f = e.format;
   const cible = pagesValides(f, e.options.ciblePages);
   const densite = DENSITE[e.options.rythme];
-  const cands = candidats(f);
+  const cands = candidats(f, e.options.ambiance);
+  const ouvertures = AMBIANCES[e.options.ambiance ?? "melange"].ouvertures;
 
   // Épisodes, dans l'ordre ; les photos non classées forment un dernier groupe.
   const groupes: { episode: EpisodeLivre | null; photos: MediaLivre[] }[] = e.episodes.map((ep) => ({
@@ -228,28 +255,34 @@ export function mettreEnPage(e: EntreeMiseEnPage): { livre: Livre; rapport: Rapp
 
   // Assemblage.
   const pages: PageLivre[] = [{ id: nouvelId(), gabarit: "titre", cellules: [], titre: e.nom, surtitre: e.periode ?? "" }];
-  const cellule = (m: MediaLivre) => ({ mediaId: m.id, zoom: 1, cx: 0.5, cy: 0.5 });
+  const cellule = (m: MediaLivre, legende = false) => {
+    const texte = legende && e.options.legendes ? legendeAuto([m], e.options.commentaires) : "";
+    return { mediaId: m.id, zoom: 1, cx: 0.5, cy: 0.5, ...(texte ? { legende: texte } : {}) };
+  };
   let numeroEpisode = 0;
   plans.forEach((p, i) => {
     if (p.episode) numeroEpisode++;
     const dates = p.episode ? datesEpisode(p.episode, e.fuseau) : "";
+    const gabaritOuverture = p.ouverture ? choisirOuverture(f, ouvertures, i, p.ouverture, pages.length + 1) : "ouverture-texte";
+    const parPhoto = legendesParPhoto(gabaritOuverture);
     pages.push({
       id: nouvelId(),
-      gabarit: p.ouverture ? "ouverture" : "ouverture-texte",
-      cellules: p.ouverture ? [cellule(p.ouverture)] : [],
+      gabarit: gabaritOuverture,
+      cellules: p.ouverture ? [cellule(p.ouverture, parPhoto)] : [],
       surtitre: p.episode ? `Épisode ${numeroEpisode}${dates ? ` · ${dates}` : ""}` : "",
       titre: p.episode ? p.episode.titre : "Et encore…",
       corps: p.episode?.recit ?? "",
-      legende: e.options.legendes && p.ouverture ? legendeAuto([p.ouverture], e.options.commentaires) : "",
+      legende: e.options.legendes && p.ouverture && !parPhoto ? legendeAuto([p.ouverture], e.options.commentaires) : "",
       episodeId: p.episode?.id ?? null,
     });
     for (const pg of p.plan.pages(repartition[i])) {
       const photosOrdonnees = pg.choix.ordre.map((j) => pg.photos[j]);
+      const parPhoto = legendesParPhoto(pg.choix.gabarit.id);
       pages.push({
         id: nouvelId(),
         gabarit: pg.choix.gabarit.id,
-        cellules: photosOrdonnees.map(cellule),
-        legende: e.options.legendes ? legendeAuto(photosOrdonnees, e.options.commentaires) : "",
+        cellules: photosOrdonnees.map((m) => cellule(m, parPhoto)),
+        legende: e.options.legendes && !parPhoto ? legendeAuto(photosOrdonnees, e.options.commentaires) : "",
         episodeId: p.episode?.id ?? null,
       });
     }

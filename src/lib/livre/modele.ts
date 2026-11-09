@@ -3,6 +3,10 @@
  * des photos avec leur recadrage dans le cadre, et des textes. Aucune coordonnée au pixel.
  */
 import { z } from "zod";
+import { IDS_AMBIANCES, type Ambiance } from "./gabarits";
+import { FONDS, IDS_FONDS, IDS_STYLES, type IdFond, type IdStyle } from "./styles";
+
+const enumFonds = z.enum(IDS_FONDS as [IdFond, ...IdFond[]]);
 
 export const schemaCellule = z.object({
   mediaId: z.string().max(64),
@@ -11,6 +15,8 @@ export const schemaCellule = z.object({
   /** Point de la photo placé au centre du cadre (0 à 1). */
   cx: z.number().min(0).max(1).default(0.5),
   cy: z.number().min(0).max(1).default(0.5),
+  /** Légende propre à cette photo (gabarits qui légendent chaque photo). */
+  legende: z.string().max(300).optional(),
 });
 export type Cellule = z.infer<typeof schemaCellule>;
 
@@ -23,6 +29,8 @@ export const schemaPage = z.object({
   corps: z.string().max(6000).optional(),
   legende: z.string().max(600).optional(),
   episodeId: z.string().max(64).nullable().optional(),
+  /** Fond de cette page, s'il diffère de celui du livre. */
+  fond: enumFonds.optional(),
 });
 export type PageLivre = z.infer<typeof schemaPage>;
 
@@ -35,7 +43,11 @@ export const schemaLivre = z.object({
   options: z.object({
     ciblePages: z.number().int().min(10).max(400),
     rythme: z.enum(["dense", "equilibre", "aere"]),
-    fond: z.enum(["blanc", "noir"]),
+    fond: enumFonds,
+    /** Style typographique (titres, récits, légendes). */
+    style: z.enum(IDS_STYLES as [IdStyle, ...IdStyle[]]).optional(),
+    /** Ambiance de la mise en page automatique. */
+    ambiance: z.enum(IDS_AMBIANCES as [Ambiance, ...Ambiance[]]).optional(),
     legendes: z.boolean(),
     commentaires: z.boolean(),
   }),
@@ -75,7 +87,12 @@ export function nouvelId(): string {
 }
 
 /** Couleurs des pages : identiques à l'écran et dans le PDF. */
-export const FONDS = {
-  blanc: { fond: "#fbf9f5", encre: "#1d1b18", douce: "#6f675d" },
-  noir: { fond: "#151413", encre: "#f1ece4", douce: "#a49b8f" },
-} as const;
+export { FONDS };
+
+/** Proportions (largeur / hauteur) des photos d'une page, dans l'ordre des cadres. */
+export function ratiosDe(cellules: (Cellule | null)[], dims: (mediaId: string) => { largeur: number; hauteur: number } | undefined): (number | null)[] {
+  return cellules.map((c) => {
+    const d = c ? dims(c.mediaId) : undefined;
+    return d && d.largeur && d.hauteur ? d.largeur / d.hauteur : null;
+  });
+}
