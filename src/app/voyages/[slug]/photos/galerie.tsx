@@ -1,6 +1,7 @@
 "use client";
 
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Visionneuse } from "@/components/visionneuse";
 import type { MediaGalerie } from "@/server/domaine/medias";
@@ -34,6 +35,7 @@ export function Galerie({
   utilisateurId,
   estAdmin,
   selection,
+  dates,
 }: {
   medias: MediaGalerie[];
   slug: string;
@@ -41,17 +43,26 @@ export function Galerie({
   estAdmin: boolean;
   /** Mode sélection : cocher plusieurs photos (pour les déplacer, les retirer du livre…). */
   selection?: { choisis: Set<string>; basculer: (id: string) => void };
+  /** Fuseau et jours du voyage : permet de changer la date d'une photo dans la visionneuse. */
+  dates?: { fuseau: string; jours: string[] };
 }) {
+  const router = useRouter();
   const conteneur = useRef<HTMLDivElement>(null);
   const { colonnes, largeur, haut } = useMesures(conteneur);
   const [liste, setListe] = useState(medias);
   // Nouvelle liste venue du serveur (rafraîchissement après un import, des aperçus recréés…) : on la reprend.
   const [source, setSource] = useState(medias);
+  const [ouvert, setOuvert] = useState<number | null>(null);
   if (source !== medias) {
+    // La photo ouverte reste ouverte, même si elle a changé de place (nouvelle date).
+    const idOuvert = ouvert !== null ? liste[ouvert]?.id : null;
     setSource(medias);
     setListe(medias);
+    if (idOuvert) {
+      const i = medias.findIndex((m) => m.id === idOuvert);
+      setOuvert(i >= 0 ? i : null);
+    }
   }
-  const [ouvert, setOuvert] = useState<number | null>(null);
   const indexDe = useMemo(() => new Map(liste.map((m, i) => [m.id, i])), [liste]);
 
   const lignes = useMemo(() => {
@@ -148,6 +159,7 @@ export function Galerie({
           onIndex={setOuvert}
           onFermer={() => setOuvert(null)}
           onMaj={(id, maj) => setListe((l) => l.map((x) => (x.id === id ? { ...x, ...maj } : x)))}
+          dates={dates ? { ...dates, apres: () => router.refresh() } : undefined}
         />
       ) : null}
     </>

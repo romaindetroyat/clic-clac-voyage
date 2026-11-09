@@ -61,4 +61,19 @@ test("organiser : ordre dans la journée, site et livre, date corrigée, masquer
   await img1.getByRole("button", { name: "Revenir à l’original" }).click();
   await expect(page.getByRole("status")).toContainText("retour à la photo d’origine");
   await expect(img1.getByText("Remplacée")).toHaveCount(0);
+
+  // Dans la visionneuse des photos : choisir un jour du voyage, ou une autre date.
+  await page.goto("/voyages/organiser-naxos/photos");
+  await page.getByRole("button", { name: "Photo DSCF1234.jpg" }).click();
+  const vis = page.getByRole("dialog");
+  const jour = vis.getByLabel("Jour de la photo");
+  await expect(jour.locator("option")).toContainText(["Lundi 3 août", "Autre date…"]);
+  await jour.selectOption("autre");
+  await vis.getByLabel("Autre date").fill("2026-08-05");
+  await vis.getByLabel("Heure de la photo").fill("09:15");
+  await vis.getByRole("button", { name: "Enregistrer la date" }).click();
+  // La visionneuse reste sur la même photo, avec sa nouvelle date.
+  await expect(vis).toHaveAttribute("aria-label", "DSCF1234.jpg");
+  await expect(vis).toContainText(/5 août.*\(date estimée\)/);
+  await expect(vis.getByLabel("Jour de la photo").locator("option")).toContainText(["Mercredi 5 août"]);
 });

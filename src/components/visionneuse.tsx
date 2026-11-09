@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { jourHeure, libelleJour } from "@/lib/jours";
 import type { MediaGalerie } from "@/server/domaine/medias";
 import type { DetailMedia } from "@/server/domaine/recit";
 
@@ -30,6 +31,7 @@ export function Visionneuse({
   onIndex,
   onFermer,
   onMaj,
+  dates,
 }: {
   slug: string;
   medias: MediaGalerie[];
@@ -39,6 +41,8 @@ export function Visionneuse({
   onIndex: (i: number) => void;
   onFermer: () => void;
   onMaj?: (id: string, maj: Partial<MediaGalerie>) => void;
+  /** Pour changer la date d'une photo : fuseau et jours du voyage ; `apres` est appelé une fois la date enregistrée. */
+  dates?: { fuseau: string; jours: string[]; apres: () => void };
 }) {
   const m = medias[index];
   const [detail, setDetail] = useState<DetailMedia | null>(null);
@@ -199,6 +203,8 @@ export function Visionneuse({
                 <p className="font-titre text-lg leading-snug">{detail.legende}</p>
               ) : null}
 
+              {dates && peutLegender ? <ChoixDate key={`${m.id}-${m.instant}`} slug={slug} m={m} dates={dates} onErreur={setErreur} /> : null}
+
               {m.type === "photo" && peutLegender ? (
                 <a href={`/voyages/${slug}/photos/${m.id}/retouche`} className="inline-flex min-h-11 items-center rounded-md border border-white/20 px-3">
                   {m.retouchee ? "Modifier la retouche" : "Retoucher"}
@@ -292,5 +298,100 @@ export function Visionneuse({
         </aside>
       ) : null}
     </div>
+  );
+}
+
+/** Date de la photo : un des jours du voyage (ou une autre date) et l'heure. */
+function ChoixDate({
+  slug,
+  m,
+  dates,
+  onErreur,
+}: {
+  slug: string;
+  m: MediaGalerie;
+  dates: { fuseau: string; jours: string[]; apres: () => void };
+  onErreur: (e: string | null) => void;
+}) {
+  const actuelle = jourHeure(m.instant, dates.fuseau);
+  const [jour, setJour] = useState(actuelle.jour);
+  const [heure, setHeure] = useState(actuelle.heure);
+  const [autre, setAutre] = useState(!!actuelle.jour && !dates.jours.includes(actuelle.jour));
+  const [enCours, setEnCours] = useState(false);
+  const modifiee = !!jour && (jour !== actuelle.jour || heure !== actuelle.heure);
+
+  async function enregistrer() {
+    setEnCours(true);
+    onErreur(null);
+    try {
+      const rep = await fetch(`/api/voyages/${slug}/dates`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "jour", ids: [m.id], jour, heure: heure || "12:00" }),
+      });
+      const r = (await rep.json()) as { erreur?: string };
+      if (!rep.ok || r.erreur) throw new Error(r.erreur ?? "Date non enregistrée.");
+      dates.apres();
+    } catch (e) {
+      onErreur(e instanceof Error ? e.message : "Date non enregistrée.");
+    } finally {
+      setEnCours(false);
+    }
+  }
+
+  return (
+    <form
+      className="space-y-2"
+      data-testid="choix-date"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void enregistrer();
+      }}
+    >
+      <span className="text-xs uppercase tracking-widest text-white/50">Date de la photo</span>
+      <div className="flex flex-wrap gap-2">
+        <select
+          aria-label="Jour de la photo"
+          className="min-h-11 rounded-md border border-white/20 bg-[#151412] px-2"
+          value={autre ? "autre" : jour}
+          onChange={(e) => {
+            if (e.target.value === "autre") setAutre(true);
+            else {
+              setAutre(false);
+              setJour(e.target.value);
+            }
+          }}
+        >
+          {!jour ? <option value="">Choisir un jour…</option> : null}
+          {dates.jours.map((j) => (
+            <option key={j} value={j}>
+              {libelleJour(j)}
+            </option>
+          ))}
+          <option value="autre">Autre date…</option>
+        </select>
+        {autre ? (
+          <input
+            type="date"
+            aria-label="Autre date"
+            className="min-h-11 rounded-md border border-white/20 bg-transparent px-2 [color-scheme:dark]"
+            value={jour}
+            onChange={(e) => setJour(e.target.value)}
+          />
+        ) : null}
+        <input
+          type="time"
+          aria-label="Heure de la photo"
+          className="min-h-11 rounded-md border border-white/20 bg-transparent px-2 [color-scheme:dark]"
+          value={heure}
+          onChange={(e) => setHeure(e.target.value)}
+        />
+      </div>
+      {modifiee ? (
+        <button className="min-h-11 rounded-md bg-white px-3 text-black disabled:opacity-60" disabled={enCours}>
+          {enCours ? "Enregistrement…" : "Enregistrer la date"}
+        </button>
+      ) : null}
+    </form>
   );
 }
