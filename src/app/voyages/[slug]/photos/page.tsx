@@ -2,6 +2,7 @@ import Link from "next/link";
 import { accesVoyage } from "@/server/acces";
 import { getDb } from "@/server/db";
 import { RelectureDates } from "@/components/relecture-dates";
+import { joursDuVoyage } from "@/lib/jours";
 import { compterSansApercu } from "@/server/domaine/apercus";
 import { compterARelire, compterHorsVoyage, periodeDuVoyage } from "@/server/domaine/dates";
 import { galerie, urlsMembre } from "@/server/domaine/medias";
@@ -69,7 +70,13 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
         </div>
       ) : null}
       {sansApercu ? <ApercusManquants slug={voyage.slug} nombre={sansApercu} /> : null}
-      <Galerie medias={medias} slug={voyage.slug} utilisateurId={utilisateur.id} estAdmin={estAdmin} />
+      <Galerie
+        medias={medias}
+        slug={voyage.slug}
+        utilisateurId={utilisateur.id}
+        estAdmin={estAdmin}
+        dates={{ fuseau: voyage.fuseau, jours: joursDuVoyage(medias.map((m) => m.instant), voyage.fuseau, voyage.dateDebut, voyage.dateFin) }}
+      />
     </div>
   );
 }
