@@ -45,9 +45,14 @@ export default async function Photos({ params }: PageProps<"/voyages/[slug]/phot
             ? `${aTrier} photo${aTrier > 1 ? "s" : ""} ou vidéo${aTrier > 1 ? "s" : ""} à trier : gardez, écartez, choisissez la meilleure d’une série, retouchez.`
             : "Tout est trié. Vous pouvez revoir vos choix à tout moment."}
         </p>
-        <Link href={`/voyages/${voyage.slug}/photos/trier`} className={aTrier ? "bouton" : "bouton-discret"}>
-          {aTrier ? "Trier les photos" : "Revoir le tri"}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/voyages/${voyage.slug}/photos/trier`} className={aTrier ? "bouton" : "bouton-discret"}>
+            {aTrier ? "Trier les photos" : "Revoir le tri"}
+          </Link>
+          <Link href={`/voyages/${voyage.slug}/photos/organiser`} className="bouton-discret">
+            Organiser photo par photo
+          </Link>
+        </div>
       </div>
       {sansDate || horsVoyage ? (
         <div className="carte flex flex-wrap items-center gap-3" data-testid="sans-date">

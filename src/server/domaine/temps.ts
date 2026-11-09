@@ -54,13 +54,20 @@ export function instantCorrige(priseUtc: Date | null, decalageAppareilSecondes: 
 }
 
 /** Tri chronologique stable : instant corrigé, puis nom de fichier ; les médias sans date à la fin. */
-export function trierChronologiquement<T extends { instant: Date | null; nomFichier: string; id: string }>(medias: T[]): T[] {
+/**
+ * Ordre chronologique. `rang` (place choisie à la main dans la journée) remplace l'heure pour le tri
+ * quand il existe : c'est une des heures de la journée, redistribuée, donc l'ordre reste cohérent.
+ */
+export function trierChronologiquement<T extends { instant: Date | null; nomFichier: string; id: string; rang?: Date | null }>(medias: T[]): T[] {
+  const cle = (m: T) => m.rang ?? m.instant;
   return [...medias].sort((a, b) => {
-    if (a.instant && b.instant) {
-      const d = a.instant.getTime() - b.instant.getTime();
+    const ca = cle(a);
+    const cb = cle(b);
+    if (ca && cb) {
+      const d = ca.getTime() - cb.getTime();
       if (d !== 0) return d;
-    } else if (a.instant || b.instant) {
-      return a.instant ? -1 : 1;
+    } else if (ca || cb) {
+      return ca ? -1 : 1;
     }
     return a.nomFichier.localeCompare(b.nomFichier, "fr", { numeric: true }) || a.id.localeCompare(b.id);
   });

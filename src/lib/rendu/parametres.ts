@@ -26,6 +26,12 @@ export const schemaRetouche = z.object({
   temperature: curseur,
   teinte: curseur,
   saturation: curseur,
+  // Présence et effets (à la Lightroom)
+  vibrance: curseur,
+  clarte: curseur,
+  voile: curseur,
+  nettete: z.number().min(0).max(1).default(0),
+  vignettage: curseur,
   // Filtre sobre et son intensité (0 à 1)
   filtre: z.enum(["aucun", "noir-et-blanc", "argentique", "chaud", "froid"]).default("aucun"),
   intensite: z.number().min(0).max(1).default(1),

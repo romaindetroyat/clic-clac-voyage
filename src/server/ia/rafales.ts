@@ -27,7 +27,7 @@ export type Candidate = { id: string; cle: string; score: number };
 /** Rafales encore hésitantes : pas de choix manuel, pas déjà vues par l'IA, deux photos ou plus à égalité. */
 export async function rafalesADepartager(db: Db, voyageId: string): Promise<{ rafaleId: string; candidates: Candidate[] }[]> {
   const lignes = await db.query.media.findMany({
-    where: and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe)),
+    where: and(eq(media.voyageId, voyageId), eq(media.statut, "pret"), isNull(media.doublonDe), eq(media.masque, false)),
     columns: { id: true, rafaleId: true, choixManuel: true, nettete: true, exposition: true, versions: true, priseUtc: true },
   });
   const dejaVues = new Set((await db.select({ r: rafaleIa.rafaleId }).from(rafaleIa).where(eq(rafaleIa.voyageId, voyageId))).map((l) => l.r));

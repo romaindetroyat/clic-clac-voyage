@@ -21,12 +21,17 @@ uniform float angle;        // radians, sens horaire
 uniform float zoom;
 uniform float lumiere, contraste, hautesLumieres, ombres, blancs, noirs;
 uniform float temperature, teinte, saturation;
+uniform float vibrance, clarte, voile, nettete, vignettage;
+uniform float pas;          // pixels de la source par pixel du résultat (netteté, clarté)
 uniform int filtre;         // 0 aucun, 1 noir et blanc, 2 argentique, 3 chaud, 4 froid
 uniform float intensite;
 out vec4 couleur;
 
 float versLineaire(float c) { return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4); }
 float versSrgb(float c) { return c <= 0.0031308 ? c * 12.92 : 1.055 * pow(max(c, 0.0), 1.0 / 2.4) - 0.055; }
+
+float lum(vec3 c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }
+vec3 lire(vec2 q, vec2 d) { return texture(img, (q + d) / source + 0.5).rgb; }
 
 float tonalite(float x) {
   x += noirs * 0.15 * pow(1.0 - x, 4.0);
@@ -44,7 +49,19 @@ void main() {
   vec2 p = (f - 0.5) * cadre;
   float c = cos(-angle), s = sin(-angle);
   vec2 q = vec2(p.x * c - p.y * s, p.x * s + p.y * c) / zoom;
-  vec3 rgb = texture(img, q / source + 0.5).rgb;
+  vec3 rgb = lire(q, vec2(0.0));
+  // Netteté et clarté : mêmes voisins que cpu.ts (à pas pixels de la source).
+  if (nettete > 0.0) {
+    vec3 n = (lire(q, vec2(pas, 0.0)) + lire(q, vec2(-pas, 0.0)) + lire(q, vec2(0.0, pas)) + lire(q, vec2(0.0, -pas))) / 4.0;
+    rgb = clamp(rgb + nettete * 1.5 * (rgb - n), 0.0, 1.0);
+  }
+  if (clarte != 0.0) {
+    float d6 = 6.0 * pas;
+    float lm = (lum(lire(q, vec2(d6, d6))) + lum(lire(q, vec2(-d6, d6))) + lum(lire(q, vec2(d6, -d6))) + lum(lire(q, vec2(-d6, -d6)))) / 4.0;
+    float lb = lum(rgb);
+    float delta = clarte * 0.8 * (lb - lm) * (1.0 - (2.0 * lb - 1.0) * (2.0 * lb - 1.0));
+    rgb = clamp(rgb + delta, 0.0, 1.0);
+  }
 
   // Couleur : mêmes étapes que couleur.ts.
   float R = versLineaire(rgb.r), G = versLineaire(rgb.g), B = versLineaire(rgb.b);
@@ -61,6 +78,24 @@ void main() {
   R = clamp(L + (R - L) * sat, 0.0, 1.0);
   G = clamp(L + (G - L) * sat, 0.0, 1.0);
   B = clamp(L + (B - L) * sat, 0.0, 1.0);
+  if (vibrance != 0.0) {
+    float k = 1.0 + vibrance * (1.0 - (max(R, max(G, B)) - min(R, min(G, B)))) * 0.8;
+    L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+    R = clamp(L + (R - L) * k, 0.0, 1.0);
+    G = clamp(L + (G - L) * k, 0.0, 1.0);
+    B = clamp(L + (B - L) * k, 0.0, 1.0);
+  }
+  if (voile != 0.0) {
+    float h = voile * 0.1;
+    R = clamp((R - h) / (1.0 - h), 0.0, 1.0);
+    G = clamp((G - h) / (1.0 - h), 0.0, 1.0);
+    B = clamp((B - h) / (1.0 - h), 0.0, 1.0);
+    L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+    float k = 1.0 + voile * 0.2;
+    R = clamp(L + (R - L) * k, 0.0, 1.0);
+    G = clamp(L + (G - L) * k, 0.0, 1.0);
+    B = clamp(L + (B - L) * k, 0.0, 1.0);
+  }
   if (filtre != 0 && intensite > 0.0) {
     L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
     vec3 fl;
@@ -74,6 +109,13 @@ void main() {
     else fl = vec3(R * 0.93, G, B * 1.07);
     vec3 m2 = clamp(mix(vec3(R, G, B), fl, intensite), 0.0, 1.0);
     R = m2.r; G = m2.g; B = m2.b;
+  }
+  if (vignettage != 0.0) {
+    float d = length(uv - 0.5) * 1.41421356;
+    float k = 1.0 + vignettage * 0.7 * smoothstep(0.35, 1.0, d);
+    R = clamp(R * k, 0.0, 1.0);
+    G = clamp(G * k, 0.0, 1.0);
+    B = clamp(B * k, 0.0, 1.0);
   }
   couleur = vec4(R, G, B, 1.0);
 }`;
@@ -150,7 +192,8 @@ export class MoteurRendu {
     gl.uniform4f(u("recadrage"), g.recadrage.x, g.recadrage.y, g.recadrage.l, g.recadrage.h);
     gl.uniform1f(u("angle"), g.angle);
     gl.uniform1f(u("zoom"), g.zoom);
-    for (const k of ["lumiere", "contraste", "hautesLumieres", "ombres", "blancs", "noirs", "temperature", "teinte", "saturation", "intensite"] as const) {
+    gl.uniform1f(u("pas"), Math.max(1, Math.max(largeur, hauteur) / Math.max(l, h)));
+    for (const k of ["lumiere", "contraste", "hautesLumieres", "ombres", "blancs", "noirs", "temperature", "teinte", "saturation", "intensite", "vibrance", "clarte", "voile", "nettete", "vignettage"] as const) {
       gl.uniform1f(u(k), r[k]);
     }
     gl.uniform1i(u("filtre"), FILTRES[r.filtre]);

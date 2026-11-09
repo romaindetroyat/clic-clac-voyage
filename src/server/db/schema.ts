@@ -306,6 +306,12 @@ export const media = pgTable(
     vedette: boolean("vedette").notNull().default(false),
     // Déjà passé par l'écran « Trier » (décision prise : écartée, site seul, site et livre, coup de cœur).
     trie: boolean("trie").notNull().default(false),
+    // Masqué : absent des photos, du tri, du site et du livre (dossier « Photos masquées »).
+    masque: boolean("masque").notNull().default(false),
+    // Place choisie à la main dans sa journée : sert à l'ordre d'affichage, l'heure réelle ne change pas.
+    rang: timestamp("rang", { withTimezone: true }),
+    // Versions web remplacées par une image modifiée ailleurs (l'original reste intact).
+    remplacee: boolean("remplacee").notNull().default(false),
     ...horodatage,
   },
   (t) => [
