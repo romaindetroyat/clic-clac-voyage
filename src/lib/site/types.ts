@@ -1,5 +1,5 @@
 /** Données publiques du site d'un voyage : jamais de position précise, jamais d'adresse e-mail. */
-import type { ConfigSite, Presentation } from "./config";
+import type { Cadrage, ConfigSite, Presentation } from "./config";
 
 export type TailleSite = "s" | "m" | "l" | "affiche" | "video";
 
@@ -16,6 +16,8 @@ export type MediaSite = {
   vedette: boolean;
   reactions: { emoji: string; nb: number }[];
   commentaires: { auteur: string; texte: string }[];
+  /** Recadrage choisi dans l'éditeur visuel (ajouté au rendu, d'après la configuration). */
+  cadrage?: Cadrage;
 };
 
 export type EpisodeSite = {

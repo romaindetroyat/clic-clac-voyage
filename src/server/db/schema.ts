@@ -429,7 +429,7 @@ export const commandeLivre = pgTable(
 /* Intelligence artificielle (budget plafonné)                          */
 /* ------------------------------------------------------------------ */
 
-export const usageIa = pgEnum("usage_ia", ["rafale", "imprimeur"]);
+export const usageIa = pgEnum("usage_ia", ["rafale", "imprimeur", "site"]);
 
 /** Chaque appel à l'API d'IA, avec son coût : sert à tenir le budget mensuel. */
 export const depenseIa = pgTable(

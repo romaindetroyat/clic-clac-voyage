@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chapitres, choisirOuverture, mettreEnPage } from "@/lib/site/carnet";
+import { chapitres, choisirOuverture, mettreEnPage, mediasDuBloc } from "@/lib/site/carnet";
 import { configParDefaut } from "@/lib/site/config";
 import type { DonneesSite, EpisodeSite, MediaSite } from "@/lib/site/types";
 
@@ -40,7 +40,7 @@ describe("mise en page du carnet", () => {
 
   it("chaque média est placé une fois et une seule, dans l'ordre", () => {
     const l = [portrait(), paysage(), portrait(), paysage({ vedette: true }), portrait(), paysage(), paysage(), portrait()];
-    const places = mettreEnPage(l).flatMap((b) => (b.type === "rangee" ? b.medias : [b.m]));
+    const places = mettreEnPage(l).flatMap(mediasDuBloc);
     expect(places.map((x) => x.id)).toEqual(l.map((x) => x.id));
   });
 
@@ -104,7 +104,7 @@ describe("chapitres", () => {
     ]);
     expect(c.parties.map((p) => p.jour)).toEqual(["Jour 1 · lundi 3 août", "Jour 2 · mardi 4 août"]);
     // La photo d'ouverture n'est pas répétée dans le fil.
-    expect(c.parties.flatMap((p) => p.blocs).flatMap((b) => (b.type === "rangee" ? b.medias : [b.m]))).not.toContain(c.ouverture);
+    expect(c.parties.flatMap((p) => p.blocs).flatMap(mediasDuBloc)).not.toContain(c.ouverture);
 
     // Même voyage, chapitres par jour : le récit de l'épisode s'affiche à son premier jour.
     const parJour = chapitres(donnees([e], []), "jours");
